@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
+import { initials } from "@/lib/format/initials";
 import { calculateCartTotal, type Fulfilment } from "@/lib/pricing/calculateCartTotal";
 import { store } from "@/lib/placeholder/catalog";
 import { PAYMENT_METHODS, type PaymentMethod, type PlaceholderOrder } from "@/lib/placeholder/orders";
@@ -225,12 +226,4 @@ export function CheckoutScreen() {
       </p>
     </div>
   );
-}
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
 }

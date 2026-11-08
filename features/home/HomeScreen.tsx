@@ -6,6 +6,7 @@ import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { categories, products, store, type Product } from "@/lib/placeholder/catalog";
 import type { Fulfilment } from "@/lib/pricing/calculateCartTotal";
+import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
 import { QtyControl } from "@/features/cart/QtyControl";
 import { LocationPicker } from "@/features/location/LocationPicker";
 import { usePrefsStore } from "./prefsStore";
@@ -117,7 +118,8 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="flex flex-col gap-2 rounded-[12px] border-[0.5px] border-border bg-surface p-3">
       <Link href={`/product/${product.id}`} className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium">{product.name}</h2>
+        <ProductPlaceholder name={product.name} />
+        <h2 className="mt-1 text-sm font-medium">{product.name}</h2>
         <p className="text-xs text-muted">{product.unit}</p>
         <p className="text-sm font-semibold">{formatPaise(product.unitPricePaise)}</p>
       </Link>
