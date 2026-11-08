@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { InstallPromptBanner } from "@/components/pwa/InstallPromptBanner";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         {children}
+        <InstallPromptBanner />
         <Analytics />
         <SpeedInsights />
       </body>
