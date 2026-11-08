@@ -17,6 +17,7 @@ import { useOrdersStore } from "@/features/orders/ordersStore";
 import { describeLocation, useLocationStore } from "@/features/location/locationStore";
 import { reverseGeocodeCoords } from "@/lib/location/reverseGeocode";
 import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
+import { useStoreSettings } from "@/lib/stores/useStoreSettings";
 
 const TIP_OPTIONS_PAISE = [0, 1000, 2000, 3000];
 
@@ -47,6 +48,8 @@ export function CheckoutScreen() {
   const clearCart = useCartStore((s) => s.clear);
   const addOrder = useOrdersStore((s) => s.addOrder);
   const fulfilment = usePrefsStore((s) => s.fulfilment) ?? "pickup";
+  const setFulfilment = usePrefsStore((s) => s.setFulfilment);
+  const deliveryEnabled = useStoreSettings((s) => s.deliveryEnabled);
   const selectedId = useLocationStore((s) => s.selectedId);
   const currentAddress = useLocationStore((s) => s.currentAddress);
   const savedLocations = useLocationStore((s) => s.savedLocations);
@@ -172,6 +175,11 @@ export function CheckoutScreen() {
   }
 
   const validate = () => {
+    if (fulfilment === "delivery" && !deliveryEnabled) {
+      setErrors({ form: "Store deliveries are currently paused because no delivery partner is available. Please switch to Store Owner Pickup." });
+      return false;
+    }
+
     if (fulfilment === "delivery") {
       const result = addressSchema.safeParse({ line, pincode });
       if (!result.success) {
@@ -259,6 +267,24 @@ export function CheckoutScreen() {
           {fulfilment === "pickup" ? "🏪 Store Owner Pickup" : "🛵 Store Delivery"}
         </span>
       </div>
+
+      {!deliveryEnabled && fulfilment === "delivery" && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="flex items-center gap-2 font-bold">
+            <span>⚠️</span>
+            <span>Store Deliveries Currently Paused</span>
+          </div>
+          <p>
+            The store owner has temporarily stopped deliveries because no delivery partners are available right now. Please switch to Store Owner Pickup to complete your order.
+          </p>
+          <button
+            onClick={() => setFulfilment("pickup")}
+            className="w-fit rounded-lg bg-accent px-3 py-1.5 font-bold text-accent-fg shadow-xs transition-opacity hover:opacity-90"
+          >
+            🏪 Switch to Store Owner Pickup (Free)
+          </button>
+        </div>
+      )}
 
       {/* Fulfilment Details */}
       <section className="flex flex-col gap-2.5 rounded-[16px] border border-border bg-surface p-4 shadow-xs">

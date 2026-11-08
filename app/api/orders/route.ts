@@ -54,10 +54,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const supabase = createAdminClient();
+
+    // Verify delivery status if placing a delivery order
+    if (fulfilment === "delivery" && isSupabaseConfigured()) {
+      try {
+        const storeId = process.env.NEXT_PUBLIC_STORE_ID || "a0000000-0000-0000-0000-000000000001";
+        const { data: storeRow } = await supabase
+          .from("stores")
+          .select("delivery_enabled")
+          .eq("id", storeId)
+          .maybeSingle();
+
+        if (storeRow && storeRow.delivery_enabled === false) {
+          return NextResponse.json(
+            { error: "Store delivery is currently paused by the owner (no delivery partners available). Please place a pickup order." },
+            { status: 400 },
+          );
+        }
+      } catch {
+        // Continue if check fails
+      }
+    }
+
     // SERVER-SIDE REPRICING (Decision D4)
     // Server independently loads current prices and availability from DB / catalog.
     // Client-submitted prices are completely ignored.
-    const supabase = createAdminClient();
     let productLookup: Array<{
       id: string;
       name: string;

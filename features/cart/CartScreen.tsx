@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { calculateCartTotal } from "@/lib/pricing/calculateCartTotal";
@@ -9,6 +9,7 @@ import { store } from "@/lib/placeholder/catalog";
 import { usePrefsStore } from "@/features/home/prefsStore";
 import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
 import { useCartStore } from "./cartStore";
+import { useStoreSettings } from "@/lib/stores/useStoreSettings";
 
 const INSTRUCTION_TAGS = [
   "Leave at doorstep / reception 🏢",
@@ -24,11 +25,23 @@ export function CartScreen() {
   const clear = useCartStore((s) => s.clear);
   const fulfilment = usePrefsStore((s) => s.fulfilment) ?? "pickup";
   const setFulfilment = usePrefsStore((s) => s.setFulfilment);
+  const deliveryEnabled = useStoreSettings((s) => s.deliveryEnabled);
+  const fetchSettings = useStoreSettings((s) => s.fetchSettings);
 
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [selectedInstruction, setSelectedInstruction] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    if (!deliveryEnabled && fulfilment === "delivery") {
+      setFulfilment("pickup");
+    }
+  }, [deliveryEnabled, fulfilment, setFulfilment]);
 
   if (!hydrated) return null;
 
@@ -146,17 +159,30 @@ export function CartScreen() {
         </button>
         <button
           aria-pressed={fulfilment === "delivery"}
-          onClick={() => setFulfilment("delivery")}
+          disabled={!deliveryEnabled}
+          onClick={() => {
+            if (deliveryEnabled) setFulfilment("delivery");
+          }}
           className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[9px] text-xs font-semibold transition-all ${
-            fulfilment === "delivery"
+            !deliveryEnabled
+              ? "cursor-not-allowed bg-neutral-100 text-neutral-400 opacity-60 dark:bg-neutral-900 dark:text-neutral-500"
+              : fulfilment === "delivery"
               ? "bg-accent text-accent-fg shadow-xs"
               : "text-muted hover:text-fg"
           }`}
+          title={!deliveryEnabled ? "Deliveries paused by store owner" : undefined}
         >
           <span>🛵</span>
-          <span>Delivery ({store.deliveryEtaMinutes}m)</span>
+          <span>{deliveryEnabled ? `Delivery (${store.deliveryEtaMinutes}m)` : "Delivery (Paused)"}</span>
         </button>
       </div>
+
+      {!deliveryEnabled && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <span>🛵</span>
+          <span>Store deliveries are temporarily paused because no delivery partner is available. Your cart is set to Store Owner Pickup.</span>
+        </div>
+      )}
 
       {/* Free Delivery Banner (for delivery mode) */}
       {fulfilment === "delivery" && (

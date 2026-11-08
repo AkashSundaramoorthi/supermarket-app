@@ -289,7 +289,13 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      update_store_delivery_status: {
+        Args: {
+          p_store_id: string;
+          p_delivery_enabled: boolean;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       order_status: OrderStatus;

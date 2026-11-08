@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { categories, products, store, type Product } from "@/lib/placeholder/catalog";
@@ -10,6 +10,7 @@ import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
 import { QtyControl } from "@/features/cart/QtyControl";
 import { LocationPicker } from "@/features/location/LocationPicker";
 import { usePrefsStore } from "./prefsStore";
+import { useStoreSettings } from "@/lib/stores/useStoreSettings";
 
 export function HomeScreen() {
   const hydrated = useHydrated();
@@ -22,6 +23,12 @@ export function HomeScreen() {
 
 function Onboarding() {
   const setFulfilment = usePrefsStore((s) => s.setFulfilment);
+  const deliveryEnabled = useStoreSettings((s) => s.deliveryEnabled);
+  const fetchSettings = useStoreSettings((s) => s.fetchSettings);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col justify-center gap-6 px-5 py-10">
@@ -56,19 +63,34 @@ function Onboarding() {
         </button>
 
         <button
-          onClick={() => setFulfilment("delivery")}
-          className="group flex flex-col gap-1.5 rounded-[16px] border border-border bg-surface p-4 text-left shadow-xs transition-all hover:border-accent hover:shadow-md active:scale-[0.98]"
+          onClick={() => {
+            if (deliveryEnabled) setFulfilment("delivery");
+          }}
+          disabled={!deliveryEnabled}
+          className={`group flex flex-col gap-1.5 rounded-[16px] border p-4 text-left shadow-xs transition-all ${
+            deliveryEnabled
+              ? "border-border bg-surface hover:border-accent hover:shadow-md active:scale-[0.98]"
+              : "border-dashed border-neutral-300 bg-neutral-100 opacity-60 cursor-not-allowed dark:border-neutral-800 dark:bg-neutral-900"
+          }`}
         >
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-base font-bold text-fg">
               <span>🛵</span> Store Delivery
             </span>
-            <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg">
-              ⚡ ~{store.deliveryEtaMinutes} mins
-            </span>
+            {deliveryEnabled ? (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg">
+                ⚡ ~{store.deliveryEtaMinutes} mins
+              </span>
+            ) : (
+              <span className="rounded-full bg-neutral-200 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                🚫 Paused (No Drivers)
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted">
-            Fresh groceries delivered straight from our store to your doorstep.
+            {deliveryEnabled
+              ? "Fresh groceries delivered straight from our store to your doorstep."
+              : "Deliveries temporarily stopped by store owner because no delivery partners are available. Please choose Store Owner Pickup."}
           </p>
         </button>
       </div>
@@ -78,10 +100,23 @@ function Onboarding() {
 
 function Home({ fulfilment }: { fulfilment: Fulfilment }) {
   const setFulfilment = usePrefsStore((s) => s.setFulfilment);
+  const deliveryEnabled = useStoreSettings((s) => s.deliveryEnabled);
+  const fetchSettings = useStoreSettings((s) => s.fetchSettings);
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [onlyVeg, setOnlyVeg] = useState(false);
   const [sortBy, setSortBy] = useState<"featured" | "price-asc" | "price-desc">("featured");
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  // If user previously selected delivery but owner stopped it, gracefully switch to pickup
+  useEffect(() => {
+    if (!deliveryEnabled && fulfilment === "delivery") {
+      setFulfilment("pickup");
+    }
+  }, [deliveryEnabled, fulfilment, setFulfilment]);
 
   const visible = useMemo(() => {
     let list = products.filter((p) => {
@@ -126,17 +161,30 @@ function Home({ fulfilment }: { fulfilment: Fulfilment }) {
           </button>
           <button
             aria-pressed={fulfilment === "delivery"}
-            onClick={() => setFulfilment("delivery")}
+            disabled={!deliveryEnabled}
+            onClick={() => {
+              if (deliveryEnabled) setFulfilment("delivery");
+            }}
             className={`flex min-h-10 items-center justify-center gap-1.5 rounded-[9px] text-xs font-semibold transition-all ${
-              fulfilment === "delivery"
+              !deliveryEnabled
+                ? "cursor-not-allowed bg-neutral-100 text-neutral-400 opacity-60 dark:bg-neutral-900 dark:text-neutral-500"
+                : fulfilment === "delivery"
                 ? "bg-accent text-accent-fg shadow-xs"
                 : "text-muted hover:text-fg"
             }`}
+            title={!deliveryEnabled ? "Deliveries paused by store owner" : undefined}
           >
             <span>⚡</span>
-            <span>Delivery in {store.deliveryEtaMinutes}m</span>
+            <span>{deliveryEnabled ? `Delivery in ${store.deliveryEtaMinutes}m` : "Delivery (Paused)"}</span>
           </button>
         </div>
+
+        {!deliveryEnabled && (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <span>🛵</span>
+            <span>Store deliveries temporarily paused (no drivers available). Pickup orders active!</span>
+          </div>
+        )}
       </header>
 
       {/* Promotional Banner */}
@@ -192,7 +240,7 @@ function Home({ fulfilment }: { fulfilment: Fulfilment }) {
       </div>
 
       {/* Category Pills */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar" role="group" aria-label="Categories">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1.5 no-scrollbar scroll-smooth" role="group" aria-label="Categories">
         <button
           onClick={() => setCategoryId(null)}
           aria-pressed={categoryId === null}

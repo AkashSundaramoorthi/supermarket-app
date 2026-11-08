@@ -66,6 +66,15 @@ body {
   animation: tap 180ms ease-out;
 }
 
+/* Hide scrollbar for Chrome, Safari, Edge, Firefox, and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 @media (prefers-reduced-motion: no-preference) {
   button,
   a {
