@@ -7,6 +7,8 @@ describe("CORS & Origin Security Test Suite", () => {
   it("allows same-origin and trusted origins", () => {
     expect(isAllowedOrigin("http://localhost:3000")).toBe(true);
     expect(isAllowedOrigin("http://127.0.0.1:3000")).toBe(true);
+    expect(isAllowedOrigin("https://supermarket-app-wheat.vercel.app")).toBe(true);
+    expect(isAllowedOrigin("https://supermarket-app-git-master-akashsundaramoorthis-projects.vercel.app")).toBe(true);
     expect(isAllowedOrigin(null)).toBe(true); // Non-browser / same-origin server requests
   });
 
