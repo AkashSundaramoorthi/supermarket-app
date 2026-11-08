@@ -22,7 +22,6 @@ export function ProductDetail({ productId }: { productId: string }) {
   return (
     <div className="flex flex-col gap-4 p-4">
       <Link href="/" className="min-h-11 py-3 text-sm text-accent">Back</Link>
-      <div className="aspect-square rounded-[12px] border-[0.5px] border-border bg-surface" aria-hidden="true" />
       <div>
         <h1 className="text-xl font-semibold">{product.name}</h1>
         <p className="text-sm text-muted">{product.unit}</p>

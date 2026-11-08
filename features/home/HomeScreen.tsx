@@ -127,7 +127,6 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="flex flex-col rounded-[12px] border-[0.5px] border-border bg-surface p-3">
       <Link href={`/product/${product.id}`} className="flex flex-col gap-1">
-        <div className="aspect-square rounded-[8px] bg-bg" aria-hidden="true" />
         <h2 className="mt-2 text-sm font-medium">{product.name}</h2>
         <p className="text-xs text-muted">{product.unit}</p>
         <p className="text-sm font-semibold">{formatPaise(product.unitPricePaise)}</p>

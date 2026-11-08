@@ -1,10 +1,17 @@
+"use client";
+
 import Link from "next/link";
-import { findPlaceholderOrder } from "@/lib/placeholder/orders";
+import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
+import { findPlaceholderOrder } from "@/lib/placeholder/orders";
 import { PROGRESS_STEPS, STATUS_LABELS } from "./statusLabels";
+import { useOrdersStore } from "./ordersStore";
 
 export function OrderStatus({ orderId }: { orderId: string }) {
-  const order = findPlaceholderOrder(orderId);
+  const hydrated = useHydrated();
+  const placed = useOrdersStore((s) => s.placed);
+  if (!hydrated) return null;
+  const order = placed.find((o) => o.id === orderId) ?? findPlaceholderOrder(orderId);
   if (!order) {
     return (
       <div className="flex flex-col gap-3 p-4">
@@ -41,7 +48,7 @@ export function OrderStatus({ orderId }: { orderId: string }) {
           );
         })}
       </ol>
-      <p className="text-xs text-muted">Live updates arrive through Supabase Realtime in the backend phase.</p>
+      <p className="text-xs text-muted">Status is static in the demo. Live updates arrive through Supabase Realtime in the backend phase.</p>
     </div>
   );
 }
