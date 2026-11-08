@@ -27,7 +27,7 @@ const PAYMENT_DETAILS: Record<PaymentMethod, { label: string; icon: string; desc
 };
 
 const addressSchema = z.object({
-  line: z.string().trim().min(5, "Enter your full address (e.g. Room/Hostel)"),
+  line: z.string().trim().min(5, "Enter your full delivery address (e.g. Flat/Building, Street, Landmark)"),
   pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
 });
 
@@ -42,9 +42,17 @@ export function CheckoutScreen() {
   const fulfilment = usePrefsStore((s) => s.fulfilment) ?? "pickup";
   const selectedId = useLocationStore((s) => s.selectedId);
   const currentAddress = useLocationStore((s) => s.currentAddress);
-  const location = describeLocation(selectedId, currentAddress);
+  const savedLocations = useLocationStore((s) => s.savedLocations);
+  const addLocation = useLocationStore((s) => s.addLocation);
+  const location = describeLocation(selectedId, currentAddress, savedLocations);
 
-  const [line, setLine] = useState(location.address || "Hostel Block B, Room 304");
+  const [line, setLine] = useState(
+    location.address && location.address !== "Tap to set your delivery location"
+      ? location.address
+      : "",
+  );
+  const [saveAsCustom, setSaveAsCustom] = useState(false);
+  const [customLocationName, setCustomLocationName] = useState("");
   const [pincode, setPincode] = useState("560001");
   const [tipPaise, setTipPaise] = useState(0);
   const [payment, setPayment] = useState<PaymentMethod>("upi");
@@ -166,6 +174,10 @@ export function CheckoutScreen() {
         address: fulfilment === "delivery" ? `${line}, Pincode: ${pincode}` : undefined,
       };
 
+      if (fulfilment === "delivery" && saveAsCustom && customLocationName.trim()) {
+        addLocation(customLocationName.trim(), `${line}, Pincode: ${pincode}`);
+      }
+
       // If Razorpay live online payment
       if (
         (payment === "upi" || payment === "card") &&
@@ -272,6 +284,29 @@ export function CheckoutScreen() {
                 />
                 {errors.pincode && <span className="text-[11px] text-danger">{errors.pincode}</span>}
               </label>
+
+              {/* Save Address Option */}
+              <div className="mt-1 flex flex-col gap-2 rounded-[10px] bg-neutral-50 p-2.5 dark:bg-neutral-800/50">
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveAsCustom}
+                    onChange={(e) => setSaveAsCustom(e.target.checked)}
+                    className="rounded text-accent focus:ring-accent"
+                  />
+                  <span>Save this address for future orders</span>
+                </label>
+                {saveAsCustom && (
+                  <input
+                    type="text"
+                    value={customLocationName}
+                    onChange={(e) => setCustomLocationName(e.target.value)}
+                    placeholder="Name this location (e.g. Home, Office, Villa 12)"
+                    maxLength={35}
+                    className="min-h-9 rounded-[6px] border border-border bg-surface px-2.5 text-xs focus:border-accent focus:outline-none"
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { store } from "@/lib/placeholder/catalog";
-import { useLocationStore, describeLocation } from "@/features/location/locationStore";
+import { useLocationStore } from "@/features/location/locationStore";
 import { useCartStore } from "@/features/cart/cartStore";
 import { useAuthStore } from "./authStore";
 
@@ -16,8 +16,8 @@ export function ProfileScreen() {
   const savedName = useAuthStore((s) => s.name);
   const setName = useAuthStore((s) => s.setName);
   const logout = useAuthStore((s) => s.logout);
-  const selectedId = useLocationStore((s) => s.selectedId);
-  const currentAddress = useLocationStore((s) => s.currentAddress);
+  const savedLocations = useLocationStore((s) => s.savedLocations);
+  const removeLocation = useLocationStore((s) => s.removeLocation);
 
   const [edited, setEdited] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -47,8 +47,6 @@ export function ProfileScreen() {
     );
   }
 
-  const location = describeLocation(selectedId, currentAddress);
-
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
     setName(draft);
@@ -70,7 +68,7 @@ export function ProfileScreen() {
           <div className="flex items-center gap-1.5">
             <h2 className="truncate text-base font-bold text-fg">{savedName}</h2>
             <span className="rounded-full bg-accent/10 px-2 py-0.2 text-[10px] font-bold text-accent">
-              Student
+              Member
             </span>
           </div>
           <p className="text-xs text-muted">+91 {phone}</p>
@@ -115,23 +113,40 @@ export function ProfileScreen() {
         </div>
       </form>
 
-      {/* Saved Delivery Spot */}
-      <div className="flex flex-col gap-2 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
+      {/* Saved Delivery Spots */}
+      <div className="flex flex-col gap-2.5 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted">
-            Preferred Delivery Spot
+            Saved Addresses ({savedLocations.length})
           </h3>
           <Link href="/" className="text-xs font-semibold text-accent hover:underline">
-            Change on Home
+            Manage on Home
           </Link>
         </div>
-        <div className="flex items-center gap-2.5 pt-1">
-          <span className="text-lg">📍</span>
-          <div>
-            <p className="text-xs font-bold text-fg">{location.label}</p>
-            <p className="text-[11px] text-muted">{location.address}</p>
-          </div>
-        </div>
+
+        {savedLocations.length === 0 ? (
+          <p className="text-xs text-muted pt-1">
+            No saved addresses yet. You can save any custom location (e.g. Home, Work, Apartment) from the header address picker or at checkout.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border/60">
+            {savedLocations.map((loc) => (
+              <li key={loc.id} className="flex items-center justify-between py-2 text-xs">
+                <div className="min-w-0 pr-2">
+                  <p className="font-bold text-fg truncate">🏠 {loc.name}</p>
+                  <p className="text-muted text-[11px] truncate">{loc.address}</p>
+                </div>
+                <button
+                  onClick={() => removeLocation(loc.id)}
+                  className="shrink-0 text-muted hover:text-danger p-1 text-xs"
+                  title="Remove location"
+                >
+                  🗑️
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Store Perks Card */}

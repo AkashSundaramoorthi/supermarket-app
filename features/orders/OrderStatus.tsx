@@ -261,6 +261,19 @@ export function OrderStatus({ orderId }: { orderId: string }) {
         </>
       )}
 
+      {/* Out for delivery notice - cancellation disabled */}
+      {order.fulfilment === "delivery" && activeStatus === "out_for_delivery" && (
+        <div className="flex items-start gap-2.5 rounded-[12px] border border-amber-500/20 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300">
+          <span className="text-lg">🛵</span>
+          <div>
+            <p className="font-bold">Order Out for Delivery</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+              The driver has picked up your grocery order and is heading to your doorstep. As per store policy, orders cannot be cancelled once dispatched.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Cancellation option if eligible */}
       {canTransition(activeStatus, "cancelled", { fulfilment: order.fulfilment, wasPaid: true }) && (
         <button

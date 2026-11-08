@@ -115,7 +115,7 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
       currentStock: 18,
       reorderLevel: 40,
       urgency: "critical",
-      action: "High evening hostel demand anticipated. Restock 60 packs before 6 PM.",
+      action: "High evening delivery demand anticipated. Restock 60 packs before 6 PM.",
     },
     {
       productId: "p-5",
@@ -222,7 +222,7 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
       timeSlot: "10:00 PM – 01:30 AM",
       predictedDemand: "High 🔥",
       dominantCategory: "Instant Noodles & Canned Coffee",
-      suggestedAction: "Pre-pack hostel batch orders to achieve sub-10 minute delivery.",
+      suggestedAction: "Pre-pack batch delivery orders to achieve sub-10 minute delivery.",
     },
   ];
 

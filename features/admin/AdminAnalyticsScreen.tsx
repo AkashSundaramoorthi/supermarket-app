@@ -139,7 +139,7 @@ export function AdminAnalyticsScreen() {
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Average Order Value</span>
               <span className="text-xl font-extrabold text-fg">{formatPaise(metrics.aovPaise)}</span>
               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                Healthy student basket
+                Healthy shopper basket
               </span>
             </div>
 

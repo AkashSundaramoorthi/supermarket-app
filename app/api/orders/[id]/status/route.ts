@@ -65,6 +65,16 @@ export async function PATCH(
       const currentStatus = order.status as OrderStatus;
       const orderFulfilment = order.fulfilment as "pickup" | "delivery";
 
+      if (currentStatus === "out_for_delivery" && targetStatus === "cancelled") {
+        return NextResponse.json(
+          {
+            error: "Order is already out for delivery with courier and cannot be cancelled.",
+            code: "CANNOT_CANCEL_OUT_FOR_DELIVERY",
+          },
+          { status: 400 },
+        );
+      }
+
       const allowed = canTransition(currentStatus, targetStatus, {
         fulfilment: orderFulfilment,
         wasPaid,

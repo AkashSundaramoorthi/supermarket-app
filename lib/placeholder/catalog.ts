@@ -169,7 +169,7 @@ export const products: Product[] = [
     unit: "140 g Bowl",
     unitPricePaise: 13500,
     mrpPaise: 16000,
-    description: "Extra spicy, fiery ramen with chewy noodles and umami chili sauce. Popular campus challenge bowl.",
+    description: "Extra spicy, fiery ramen with chewy noodles and umami chili sauce. Popular fiery spicy bowl.",
     image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=80",
     badge: "Trending 🔥",
     isVeg: true,

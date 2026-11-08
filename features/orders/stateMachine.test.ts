@@ -42,6 +42,10 @@ describe("canTransition", () => {
     expect(canTransition("packed", "ready_for_pickup", delivery)).toBe(false);
   });
 
+  it("strictly prohibits cancelling when out for delivery", () => {
+    expect(canTransition("out_for_delivery", "cancelled", delivery)).toBe(false);
+  });
+
   it("refunds only a cancelled order that was paid", () => {
     expect(canTransition("cancelled", "refunded", { fulfilment: "pickup", wasPaid: false })).toBe(false);
   });

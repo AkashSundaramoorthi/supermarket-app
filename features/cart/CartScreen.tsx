@@ -11,7 +11,7 @@ import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
 import { useCartStore } from "./cartStore";
 
 const INSTRUCTION_TAGS = [
-  "Leave at hostel reception 🏢",
+  "Leave at doorstep / reception 🏢",
   "Call upon arrival 📞",
   "Do not ring bell 🔕",
   "Avoid plastic bags 🌿",
@@ -73,7 +73,7 @@ export function CartScreen() {
 
   // Coupon discount logic
   let couponDiscountPaise = 0;
-  if (appliedCoupon === "CAMPUS50") {
+  if (appliedCoupon === "SUPER50") {
     couponDiscountPaise = Math.min(5000, baseTotal.subtotalPaise); // ₹50 off
   } else if (appliedCoupon === "FRESH10") {
     couponDiscountPaise = Math.round(baseTotal.subtotalPaise * 0.1); // 10% off
@@ -87,11 +87,11 @@ export function CartScreen() {
   const applyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
-    if (code === "CAMPUS50" || code === "FRESH10") {
+    if (code === "SUPER50" || code === "FRESH10") {
       setAppliedCoupon(code);
       setCouponError(null);
     } else {
-      setCouponError("Invalid coupon. Try CAMPUS50 or FRESH10");
+      setCouponError("Invalid coupon. Try SUPER50 or FRESH10");
     }
   };
 
@@ -254,7 +254,7 @@ export function CartScreen() {
               type="text"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-              placeholder="Try CAMPUS50 or FRESH10"
+              placeholder="Try SUPER50 or FRESH10"
               className="min-h-10 flex-1 rounded-[8px] border border-border bg-bg px-3 text-xs uppercase placeholder:normal-case placeholder:text-muted focus:border-accent focus:outline-none"
             />
             <button
