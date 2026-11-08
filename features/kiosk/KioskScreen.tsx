@@ -51,7 +51,7 @@ export function KioskScreen() {
     );
   }
 
-  const total = calculateCartTotal({ lines: items, isStudent: false, fulfilment: "pickup", deliveryFeePaise: 0 });
+  const total = calculateCartTotal({ lines: items, fulfilment: "pickup", deliveryFeePaise: 0 });
   const count = items.reduce((sum, i) => sum + i.qty, 0);
 
   return (

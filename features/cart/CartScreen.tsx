@@ -6,7 +6,6 @@ import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { calculateCartTotal } from "@/lib/pricing/calculateCartTotal";
 import { store } from "@/lib/placeholder/catalog";
-import { placeholderUser } from "@/lib/placeholder/user";
 import { usePrefsStore } from "@/features/home/prefsStore";
 import { useCartStore } from "./cartStore";
 
@@ -29,7 +28,6 @@ export function CartScreen() {
 
   const total = calculateCartTotal({
     lines: items,
-    isStudent: placeholderUser.isStudent,
     fulfilment,
     deliveryFeePaise: store.deliveryFeePaise,
   });
@@ -69,17 +67,13 @@ export function CartScreen() {
 
       <dl className="flex flex-col gap-2 rounded-[12px] border-[0.5px] border-border bg-surface p-4 text-sm">
         <Row label="Subtotal" value={formatPaise(total.subtotalPaise)} />
-        <Row
-          label="Student discount"
-          value={placeholderUser.isStudent ? `-${formatPaise(total.discountPaise)}` : "Verify ID for 10% off"}
-        />
         <Row label="Delivery fee" value={fulfilment === "delivery" ? formatPaise(total.deliveryFeePaise) : "Free"} />
         <div className="mt-1 flex justify-between border-t-[0.5px] border-border pt-2 font-semibold">
           <dt>Total (preview)</dt>
-          <dd>{formatPaise(total.totalPaise)}</dd>
+          <dd>{formatPaise(total.subtotalPaise + total.deliveryFeePaise)}</dd>
         </div>
       </dl>
-      <p className="text-xs text-muted">Prices shown are a preview. The final total is calculated when you pay.</p>
+      <p className="text-xs text-muted">Prices shown are a preview. Delivery tip is added at checkout.</p>
 
       <Link href="/checkout" className="flex min-h-11 items-center justify-center rounded-[8px] bg-accent text-sm font-medium text-accent-fg">
         Checkout

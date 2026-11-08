@@ -1,24 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { calculateCartTotal } from "@/lib/pricing/calculateCartTotal";
 import { store } from "@/lib/placeholder/catalog";
-import { placeholderUser } from "@/lib/placeholder/user";
 import { usePrefsStore } from "@/features/home/prefsStore";
 import { useCartStore } from "./cartStore";
 
+const HIDDEN_ON = ["/cart", "/checkout"];
+
 export function CartBar() {
+  const pathname = usePathname();
   const hydrated = useHydrated();
   const items = useCartStore((s) => s.items);
   const fulfilment = usePrefsStore((s) => s.fulfilment) ?? "pickup";
-  if (!hydrated || items.length === 0) return null;
+  if (!hydrated || items.length === 0 || HIDDEN_ON.includes(pathname)) return null;
 
   const count = items.reduce((sum, i) => sum + i.qty, 0);
   const { totalPaise } = calculateCartTotal({
     lines: items,
-    isStudent: placeholderUser.isStudent,
     fulfilment,
     deliveryFeePaise: store.deliveryFeePaise,
   });

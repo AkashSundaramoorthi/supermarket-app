@@ -2,62 +2,88 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useHydrated } from "@/lib/hooks/useHydrated";
-import { placeholderUser } from "@/lib/placeholder/user";
+import { useLocationStore, describeLocation } from "@/features/location/locationStore";
 import { useAuthStore } from "./authStore";
-
-const STUDENT_LABELS: Record<typeof placeholderUser.studentStatus, string> = {
-  not_submitted: "Not verified. Upload a student ID to get 10% off.",
-  pending: "Verification pending review.",
-  verified: "Verified student. 10% off applies.",
-  rejected: "Verification was not accepted. You can try again.",
-};
 
 export function ProfileScreen() {
   const router = useRouter();
   const hydrated = useHydrated();
   const phone = useAuthStore((s) => s.phone);
+  const savedName = useAuthStore((s) => s.name);
+  const setName = useAuthStore((s) => s.setName);
   const logout = useAuthStore((s) => s.logout);
+  const selectedId = useLocationStore((s) => s.selectedId);
+  const currentAddress = useLocationStore((s) => s.currentAddress);
+  const [edited, setEdited] = useState<string | null>(null);
+  const draft = edited ?? savedName;
+  const saved = edited === null;
+
   if (!hydrated) return null;
+
+  if (!phone) {
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        <h1 className="text-xl font-semibold">Profile</h1>
+        <Link href="/login" className="flex min-h-11 items-center justify-center rounded-[8px] bg-accent text-sm font-medium text-accent-fg">
+          Log in
+        </Link>
+      </div>
+    );
+  }
+
+  const location = describeLocation(selectedId, currentAddress);
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-xl font-semibold">Profile</h1>
 
-      {phone ? (
-        <p className="text-sm">Logged in as {phone}</p>
-      ) : (
-        <Link href="/login" className="flex min-h-11 items-center justify-center rounded-[8px] bg-accent text-sm font-medium text-accent-fg">
-          Log in
-        </Link>
-      )}
+      <form
+        className="flex flex-col gap-3 rounded-[12px] border-[0.5px] border-border bg-surface p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setName(draft);
+          setEdited(null);
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          Name
+          <input
+            value={draft}
+            onChange={(e) => setEdited(e.target.value)}
+            placeholder="Your name"
+            maxLength={60}
+            className="min-h-11 rounded-[8px] border-[0.5px] border-border bg-bg px-3"
+          />
+        </label>
+        <Button type="submit" disabled={draft.trim() === savedName}>
+          {saved ? "Saved" : "Save name"}
+        </Button>
+      </form>
 
-      <section className="flex flex-col gap-2 rounded-[12px] border-[0.5px] border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold">Delivery address</h2>
-        <p className="text-sm">{placeholderUser.address}</p>
-        <p className="text-xs text-muted">Address editing is connected in the backend phase.</p>
+      <section className="flex flex-col gap-1 rounded-[12px] border-[0.5px] border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold">Phone number</h2>
+        <p className="text-sm">{phone}</p>
+        <p className="text-xs text-muted">Phone number cannot be changed.</p>
       </section>
 
-      <section className="flex flex-col gap-2 rounded-[12px] border-[0.5px] border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold">Student verification</h2>
-        <p className="text-sm">{STUDENT_LABELS[placeholderUser.studentStatus]}</p>
-        <Button variant="secondary" disabled title="Upload is connected in the backend phase">
-          Upload student ID
-        </Button>
+      <section className="flex flex-col gap-1 rounded-[12px] border-[0.5px] border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold">Delivery location</h2>
+        <p className="text-sm">{location.label}</p>
+        <p className="text-xs text-muted">{location.address}</p>
       </section>
 
-      {phone && (
-        <Button
-          variant="secondary"
-          onClick={() => {
-            logout();
-            router.push("/");
-          }}
-        >
-          Log out
-        </Button>
-      )}
+      <Button
+        variant="secondary"
+        onClick={() => {
+          logout();
+          router.push("/");
+        }}
+      >
+        Log out
+      </Button>
     </div>
   );
 }

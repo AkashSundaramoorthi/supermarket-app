@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { formatPaise } from "@/lib/format/money";
 import { categories, products, store, type Product } from "@/lib/placeholder/catalog";
 import type { Fulfilment } from "@/lib/pricing/calculateCartTotal";
-import { useCartStore } from "@/features/cart/cartStore";
+import { QtyControl } from "@/features/cart/QtyControl";
+import { LocationPicker } from "@/features/location/LocationPicker";
 import { usePrefsStore } from "./prefsStore";
 
 export function HomeScreen() {
@@ -20,7 +20,6 @@ export function HomeScreen() {
 
 function Onboarding() {
   const setFulfilment = usePrefsStore((s) => s.setFulfilment);
-  const choose = (f: Fulfilment) => setFulfilment(f);
   return (
     <section className="flex min-h-dvh flex-col justify-center gap-6 px-4 py-10">
       <div>
@@ -28,14 +27,14 @@ function Onboarding() {
         <p className="mt-2 text-sm text-muted">You can change this any time from home.</p>
       </div>
       <button
-        onClick={() => choose("pickup")}
+        onClick={() => setFulfilment("pickup")}
         className="flex min-h-14 flex-col items-start rounded-[12px] border-[0.5px] border-border bg-surface p-4 text-left"
       >
         <span className="font-semibold">Pickup</span>
         <span className="text-sm text-muted">Collect at {store.name} in about {store.pickupEtaMinutes} min</span>
       </button>
       <button
-        onClick={() => choose("delivery")}
+        onClick={() => setFulfilment("delivery")}
         className="flex min-h-14 flex-col items-start rounded-[12px] border-[0.5px] border-border bg-surface p-4 text-left"
       >
         <span className="font-semibold">Delivery</span>
@@ -59,10 +58,7 @@ function Home({ fulfilment }: { fulfilment: Fulfilment }) {
   return (
     <div className="flex flex-col gap-4 px-4 pt-4">
       <header className="flex flex-col gap-3">
-        <div>
-          <p className="text-xs text-muted">Shopping from</p>
-          <p className="font-semibold">{store.name}, {store.address}</p>
-        </div>
+        <LocationPicker />
         <div role="group" aria-label="Fulfilment" className="grid grid-cols-2 rounded-[8px] border-[0.5px] border-border bg-surface p-1">
           {(["pickup", "delivery"] as const).map((option) => (
             <button
@@ -85,11 +81,6 @@ function Home({ fulfilment }: { fulfilment: Fulfilment }) {
         aria-label="Search groceries"
         className="min-h-11 rounded-[8px] border-[0.5px] border-border bg-surface px-3 text-sm placeholder:text-muted"
       />
-
-      <div className="rounded-[12px] bg-accent p-4 text-accent-fg">
-        <p className="font-semibold">10% off for students</p>
-        <p className="mt-1 text-sm opacity-90">Verify your student ID in Profile to unlock it.</p>
-      </div>
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4" role="group" aria-label="Categories">
         <Chip active={categoryId === null} onClick={() => setCategoryId(null)}>All</Chip>
@@ -123,27 +114,19 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 }
 
 function ProductCard({ product }: { product: Product }) {
-  const addItem = useCartStore((s) => s.addItem);
   return (
-    <article className="flex flex-col rounded-[12px] border-[0.5px] border-border bg-surface p-3">
+    <article className="flex flex-col gap-2 rounded-[12px] border-[0.5px] border-border bg-surface p-3">
       <Link href={`/product/${product.id}`} className="flex flex-col gap-1">
-        <h2 className="mt-2 text-sm font-medium">{product.name}</h2>
+        <h2 className="text-sm font-medium">{product.name}</h2>
         <p className="text-xs text-muted">{product.unit}</p>
         <p className="text-sm font-semibold">{formatPaise(product.unitPricePaise)}</p>
       </Link>
-      <Button
-        className="mt-2 w-full"
-        onClick={() =>
-          addItem({
-            productId: product.id,
-            name: product.name,
-            unit: product.unit,
-            unitPricePaise: product.unitPricePaise,
-          })
-        }
-      >
-        Add
-      </Button>
+      <QtyControl
+        productId={product.id}
+        name={product.name}
+        unit={product.unit}
+        unitPricePaise={product.unitPricePaise}
+      />
     </article>
   );
 }

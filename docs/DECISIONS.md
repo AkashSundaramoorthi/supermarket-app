@@ -10,7 +10,7 @@ Postgres, Auth (phone OTP), RLS, Realtime, and Edge Functions cover everything i
 The browser success callback can be faked or lost (tab closed, flaky network). Only the signed Razorpay webhook marks an order `paid`; the status page waits via Realtime. Costs a few seconds of delay, buys correctness.
 
 ## D4. Server-side repricing
-The client sends product ids and quantities only. `create-order` recomputes prices, stock, and the student discount from the DB. Cart prices in the UI are previews.
+The client sends product ids and quantities only. `create-order` recomputes prices, stock, and the delivery fee from the DB. Cart prices in the UI are previews.
 
 ## D5. Zustand with localStorage for cart
 Small, no provider boilerplate, persists across reloads for guests. Merged into the server cart at login. Alternative (server cart only) would force login before adding items.
@@ -23,10 +23,10 @@ Avoids float rounding in discounts and matches Razorpay's amounts.
 
 ## Assumptions (ambiguities resolved)
 - A1. Single store at launch; schema supports many. Stock is per store.
-- A2. Student discount is 10% of subtotal, applied to the whole order, rounded to the nearest paisa.
-- A3. Student verification is by ID photo upload and manual review only. No college email, no email service. The app is open to everyone; the discount is just a perk.
+- A2. No student discount. Total is subtotal plus delivery fee (delivery only) plus optional delivery tip.
+- A3. Payment is COD, UPI or card, chosen at checkout. COD orders are recorded without an online charge.
 - A4. No admin panel: staff move orders through states via Supabase dashboard or SQL.
-- A5. Delivery has a flat per-store fee (`stores.delivery_fee_paise`), not discounted by the student discount; no zone logic in MVP. Pickup is free. Address is free text.
+- A5. Delivery has a flat per-store fee (`stores.delivery_fee_paise`), tip is separate and optional; no zone logic in MVP. Pickup is free. Address is free text.
 - A6. Kiosk orders are created by a route handler under a kiosk user and paid via Razorpay UPI QR.
 - A7. Abandoned `pending_payment` orders auto-cancel after 30 minutes.
 - A8. Razorpay webhook events used: `payment.captured`, `payment.failed`, `refund.processed`.

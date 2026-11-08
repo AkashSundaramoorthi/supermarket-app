@@ -9,7 +9,7 @@ A mobile-first web app where customers browse a supermarket catalog and order fo
 MVP goals:
 - Browse catalog as a guest; log in with phone OTP at checkout.
 - Pickup and delivery orders, paid via Razorpay (UPI).
-- 10% discount for students with a verified student ID.
+- Optional delivery tip for the delivery partner; payment by COD, UPI or card.
 - Live order status with a collection code.
 - `/kiosk` route for a store tablet or PC: fullscreen, resets after each order, shows a collection code.
 - Phone-first UI; on desktop the app is a centered ~430px column on a neutral background.
@@ -58,7 +58,7 @@ sequenceDiagram
   participant WH as razorpay-webhook (Edge Fn)
 
   B->>CO: POST cart items, fulfilment, JWT
-  CO->>DB: read prices, stock, student status
+  CO->>DB: read prices and stock
   CO->>RZ: create order (server-computed amount)
   CO->>DB: insert order (pending_payment) + items
   CO-->>B: order_id, razorpay_order_id, amount, key_id
@@ -114,7 +114,7 @@ supermarket-app/
 | `/checkout` | Slot or address, pay | Required |
 | `/orders` | Order history | Required |
 | `/orders/[id]` | Live status, collection code | Required (owner only) |
-| `/profile` | Address, student status, logout | Required |
+| `/profile` | Name (editable), phone (read-only), delivery location, logout | Required |
 | `/kiosk` | Store kiosk ordering | Public (see section 13) |
 
 Auth is enforced in Next.js middleware (redirect to `/login?next=...`) and again by RLS. Middleware is a UX convenience; RLS is the real gate.
@@ -125,16 +125,15 @@ All tables have RLS enabled. Money is stored in integer paise. Timestamps are `t
 
 | Table | Columns | Keys | RLS intent |
 |---|---|---|---|
-| `profiles` | `id uuid`, `phone text`, `full_name text`, `default_address jsonb`, `is_student bool default false`, `created_at` | PK `id` = `auth.users.id` | User reads and updates own row. `is_student` not user-writable (column privilege / trigger). |
+| `profiles` | `id uuid`, `phone text`, `full_name text`, `default_address jsonb`, `created_at` | PK `id` = `auth.users.id` | User reads and updates own row. |
 | `stores` | `id uuid`, `name`, `address`, `lat`, `lng`, `pickup_eta_minutes int default 15`, `delivery_enabled bool`, `delivery_fee_paise int default 0`, `active bool` | PK `id` | Public read of active stores. No client writes. |
 | `categories` | `id uuid`, `name`, `slug`, `sort_order int` | PK `id`, unique `slug` | Public read. No client writes. |
 | `products` | `id uuid`, `category_id`, `name`, `description`, `price_paise int`, `mrp_paise int`, `unit text`, `image_url`, `active bool` | PK `id`, FK `category_id`, index `(category_id, active)` | Public read of active. No client writes. |
 | `store_stock` | `store_id`, `product_id`, `qty int`, `updated_at` | PK `(store_id, product_id)`, FKs | Public read. No client writes. Decremented by service role on payment. |
 | `carts` | `id`, `user_id`, `store_id`, `updated_at` | PK `id`, unique `user_id` | Owner only (select/insert/update/delete). |
 | `cart_items` | `cart_id`, `product_id`, `qty int check > 0` | PK `(cart_id, product_id)` | Owner only, via join to `carts`. |
-| `orders` | `id`, `user_id`, `store_id`, `status order_status`, `fulfilment ('pickup','delivery')`, `pickup_slot timestamptz`, `delivery_address jsonb`, `subtotal_paise`, `discount_paise`, `delivery_fee_paise`, `total_paise`, `student_discount_applied bool`, `collection_code text`, `razorpay_order_id text unique`, `razorpay_payment_id text`, `created_at`, `updated_at` | PK `id`, index `(user_id, created_at desc)` | Owner select only. No client insert/update; Edge Functions use service role. |
+| `orders` | `id`, `user_id`, `store_id`, `status order_status`, `fulfilment ('pickup','delivery')`, `pickup_slot timestamptz`, `delivery_address jsonb`, `subtotal_paise`, `delivery_fee_paise`, `tip_paise`, `total_paise`, `payment_method ('cod','upi','card')`, `collection_code text`, `razorpay_order_id text unique`, `razorpay_payment_id text`, `created_at`, `updated_at` | PK `id`, index `(user_id, created_at desc)` | Owner select only. No client insert/update; Edge Functions use service role. |
 | `order_items` | `order_id`, `product_id`, `name_snapshot`, `unit_price_paise`, `qty` | PK `(order_id, product_id)` | Owner select via join to `orders`. No client writes. |
-| `student_verifications` | `id`, `user_id`, `id_image_path text`, `status ('pending','verified','rejected')`, `reviewed_at`, `created_at` | PK `id`, index `user_id` | Owner select. Insert only via `verify-student`. Never client-updated. |
 
 `collection_code`: 4-digit-plus-letter code generated server-side when the order becomes `paid`, unique per store per day.
 
@@ -142,7 +141,7 @@ All tables have RLS enabled. Money is stored in integer paise. Timestamps are `t
 
 ### `create-order`
 - **Input:** `{ items: [{product_id, qty}], store_id, fulfilment, pickup_slot?, delivery_address? }`, user JWT.
-- **Does:** validates with Zod; loads current prices, stock, and the store's delivery fee from DB (ignores any client price); checks `profiles.is_student` (set only when a `student_verifications` row is `verified`); calls shared pricing logic: 10% student discount on the subtotal, plus the flat delivery fee for delivery orders (pickup has no fee, and the fee is not discounted); creates Razorpay order via API; inserts `orders` (`pending_payment`) and `order_items` snapshots.
+- **Does:** validates with Zod; loads current prices, stock, and the store's delivery fee from DB (ignores any client price); calls shared pricing logic: subtotal plus the flat delivery fee and tip for delivery orders (pickup has no fee or tip); creates Razorpay order via API; inserts `orders` (`pending_payment`) and `order_items` snapshots.
 - **Output:** `{ order_id, razorpay_order_id, amount_paise, key_id }`.
 - **Secrets:** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
 - **Failures:** 401 no JWT; 400 invalid payload; 409 out of stock or inactive product (returns the offending items); 422 delivery unavailable or slot invalid; 502 Razorpay error (no order row is left behind, or row is marked `cancelled`).
@@ -153,13 +152,6 @@ All tables have RLS enabled. Money is stored in integer paise. Timestamps are `t
 - **Secrets:** `RAZORPAY_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
 - **Failures:** bad signature returns 400 and logs; unknown order returns 200 and logs (avoids endless retries); transient DB error returns 500 so Razorpay retries; amount mismatch between payload and `orders.total_paise` marks nothing and alerts via logs.
 - Deployed with JWT verification disabled (Razorpay has no Supabase JWT); the signature is the auth.
-
-### `verify-student`
-- **Input:** `{ id_image_path }` (path of an ID photo the user already uploaded to the private `student-ids` bucket), user JWT.
-- **Does:** checks the file exists under the caller's own folder, inserts a `pending` row. A human reviewer approves in MVP by setting `status='verified'`; a DB trigger then sets `profiles.is_student=true`. Verification is by ID only: no college email is needed, since the app is open to everyone.
-- **Output:** `{ verification_id, status: 'pending' }`.
-- **Secrets:** `SUPABASE_SERVICE_ROLE_KEY`.
-- **Failures:** 401 no JWT; 400 missing or foreign file path; 409 a pending or verified request already exists; 429 too many submissions.
 
 ## 7. Payment flow (step by step)
 
@@ -222,9 +214,8 @@ Terminal: `collected`, `delivered`, `refunded`.
 - Browser uses only the anon key. Razorpay key secret, webhook secret, and service role key exist only in Edge Function secrets (and Vercel server env if a route handler needs them). Only `NEXT_PUBLIC_*` values reach the client bundle.
 - HTTPS only; HSTS via Vercel. CSP headers set in `next.config.ts`: allow `checkout.razorpay.com` for script and frame, the Supabase project URL for connect (including `wss:`), self for everything else.
 - Webhook signature verified on raw body; constant-time compare.
-- Server never trusts client prices, discount flags, or status.
+- Server never trusts client prices, fee amounts, or status.
 - Zod validation at every Edge Function and route handler boundary.
-- Student ID images (if used) go in a private Storage bucket, owner-write, reviewer-read only.
 
 ## 13. Kiosk mode
 
@@ -242,7 +233,7 @@ Terminal: `collected`, `delivered`, `refunded`.
 
 ## 15. Testing strategy
 
-- **Vitest:** `calculateCartTotal` (subtotal, student discount rounding in paise, empty cart), `canTransition` (every valid and a sample of invalid pairs), cart store actions (add, remove, set qty, clear, persistence merge).
+- **Vitest:** `calculateCartTotal` (subtotal, delivery fee, tip, empty cart), `canTransition` (every valid and a sample of invalid pairs), cart store actions (add, remove, set qty, clear, persistence merge).
 - **pgTAP** (`supabase/tests/`): user A cannot read user B's orders or items; anon cannot read orders; clients cannot update orders.
 - **Playwright** at 390x844: home -> add to cart -> cart -> checkout page renders. Razorpay is not driven in smoke tests; a separate manual test uses Razorpay test keys and test UPI IDs.
 - **Webhook:** local `supabase functions serve` plus a script that signs a sample payload with the test secret and posts it; assert the order moves to `paid` and a replay is a no-op.
@@ -252,6 +243,6 @@ Terminal: `collected`, `delivered`, `refunded`.
 - Vercel: preview deployment per PR, production from `main`. Env vars set per environment.
 - Supabase: separate **staging** and **production** projects; migrations applied via CLI; Edge Function secrets set per project.
 - Razorpay: test mode on staging; production needs completed **KYC** and business verification before live keys.
-- Privacy policy page (required before launch and by Razorpay): what is collected (phone number, name, address, student ID data, order history), purpose, processors (Supabase, Razorpay, SMS provider), retention, deletion request process, contact. State that card/UPI details are handled by Razorpay and not stored by us.
+- Privacy policy page (required before launch and by Razorpay): what is collected (phone number, name, delivery address, order history), purpose, processors (Supabase, Razorpay, SMS provider), retention, deletion request process, contact. State that card/UPI details are handled by Razorpay and not stored by us.
 - SMS: complete DLT registration and MSG91 setup before enabling phone auth in production.
 - Pre-launch checklist: RLS review, webhook configured with production URL and secret, CSP verified, manifest installable on Android and iOS.
