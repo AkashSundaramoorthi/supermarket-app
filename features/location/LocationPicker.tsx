@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useHydrated } from "@/lib/hooks/useHydrated";
 import { store } from "@/lib/placeholder/catalog";
+import { reverseGeocodeCoords } from "@/lib/location/reverseGeocode";
 import { CURRENT_LOCATION_ID, describeLocation, useLocationStore } from "./locationStore";
 
 export function LocationPicker() {
@@ -24,10 +25,40 @@ export function LocationPicker() {
   const [newName, setNewName] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [fillingGps, setFillingGps] = useState(false);
 
   const current = hydrated
     ? describeLocation(selectedId, currentAddress, savedLocations)
     : { label: "Select Location", address: "Select delivery spot" };
+
+  const handleFillFromCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setFormError("Location is not supported on this device/browser.");
+      return;
+    }
+    setFillingGps(true);
+    setFormError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await reverseGeocodeCoords(pos.coords.latitude, pos.coords.longitude);
+          setNewAddress(res.formattedAddress);
+          if (!newName.trim() && res.suggestedName) {
+            setNewName(res.suggestedName);
+          }
+        } catch {
+          setNewAddress(`Live GPS (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
+        } finally {
+          setFillingGps(false);
+        }
+      },
+      () => {
+        setFillingGps(false);
+        setFormError("Could not detect GPS location. Please check browser permissions.");
+      },
+      { timeout: 8000 },
+    );
+  };
 
   const detect = () => {
     if (!navigator.geolocation) {
@@ -205,6 +236,17 @@ export function LocationPicker() {
                       Cancel
                     </button>
                   </div>
+
+                  {/* 1-Tap Fill from Current Location */}
+                  <button
+                    type="button"
+                    onClick={handleFillFromCurrentLocation}
+                    disabled={fillingGps}
+                    className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-[8px] bg-accent/10 border border-accent/25 px-3 text-xs font-semibold text-accent hover:bg-accent/20 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    <span>📍</span>
+                    <span>{fillingGps ? "Detecting current address..." : "Fill address from Current Location"}</span>
+                  </button>
 
                   <input
                     type="text"

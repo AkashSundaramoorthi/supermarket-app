@@ -78,6 +78,27 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      {/* Store Owner Quick Admin Access */}
+      <Link
+        href="/admin"
+        className="flex items-center justify-between rounded-[16px] bg-gradient-to-r from-emerald-800 to-teal-800 p-4 text-white shadow-xs transition-transform hover:scale-[1.01] active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-white/20 text-xl">
+            📊
+          </div>
+          <div>
+            <p className="text-sm font-bold">Store Owner Analytics Panel</p>
+            <p className="text-[11px] text-emerald-100">
+              Live orders, revenue KPIs, stock alerts & demand planning
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
+          Open ↗
+        </span>
+      </Link>
+
       {/* Edit Name Form */}
       <form
         onSubmit={handleSaveName}

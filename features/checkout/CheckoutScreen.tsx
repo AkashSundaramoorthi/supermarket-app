@@ -15,6 +15,7 @@ import { useCartStore } from "@/features/cart/cartStore";
 import { useAuthStore } from "@/features/profile/authStore";
 import { useOrdersStore } from "@/features/orders/ordersStore";
 import { describeLocation, useLocationStore } from "@/features/location/locationStore";
+import { reverseGeocodeCoords } from "@/lib/location/reverseGeocode";
 import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
 
 const TIP_OPTIONS_PAISE = [0, 1000, 2000, 3000];
@@ -59,6 +60,7 @@ export function CheckoutScreen() {
   );
   const [saveAsCustom, setSaveAsCustom] = useState(false);
   const [customLocationName, setCustomLocationName] = useState("");
+  const [detectingGps, setDetectingGps] = useState(false);
   const [pincode, setPincode] = useState("560001");
   const [tipPaise, setTipPaise] = useState(0);
   const [payment, setPayment] = useState<PaymentMethod>("upi");
@@ -66,6 +68,36 @@ export function CheckoutScreen() {
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
+
+  const handleFillGpsAddress = () => {
+    if (!navigator.geolocation) {
+      setErrors((prev) => ({ ...prev, line: "Geolocation not supported by browser" }));
+      return;
+    }
+    setDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await reverseGeocodeCoords(pos.coords.latitude, pos.coords.longitude);
+          setLine(res.formattedAddress);
+          if (res.pincode) setPincode(res.pincode);
+          if (!customLocationName.trim() && res.suggestedName) {
+            setCustomLocationName(res.suggestedName);
+          }
+          setErrors((prev) => ({ ...prev, line: "" }));
+        } catch {
+          setLine(`GPS Location (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
+        } finally {
+          setDetectingGps(false);
+        }
+      },
+      () => {
+        setDetectingGps(false);
+        setErrors((prev) => ({ ...prev, line: "Could not retrieve GPS location. Check browser permissions." }));
+      },
+      { timeout: 8000 },
+    );
+  };
 
   // Pricing calculations
   const subtotalPaise = items.reduce((sum, i) => sum + i.unitPricePaise * i.qty, 0);
@@ -248,9 +280,20 @@ export function CheckoutScreen() {
         ) : (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted">
-                Delivery Address
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Delivery Address
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleFillGpsAddress}
+                  disabled={detectingGps}
+                  className="flex items-center gap-1 rounded-[6px] bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent hover:bg-accent/20 active:scale-[0.98] disabled:opacity-60"
+                >
+                  <span>📍</span>
+                  <span>{detectingGps ? "Detecting..." : "Auto-fill Current Location"}</span>
+                </button>
+              </div>
               <span className="text-xs font-bold text-accent">⚡ ~{store.deliveryEtaMinutes}m ETA</span>
             </div>
 
