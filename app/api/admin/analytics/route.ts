@@ -22,7 +22,7 @@ export async function GET() {
             createdAt: o.created_at,
             fulfilment: o.fulfilment,
             status: o.status,
-            paymentMethod: o.payment_method,
+            paymentMethod: (o.payment_method === "cod" ? "cod" : "upi") as "upi" | "cod",
             totalPaise: o.total_paise,
             itemCount: rawItems?.length || 1,
             collectionCode: o.collection_code,

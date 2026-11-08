@@ -1,7 +1,7 @@
 import type { Fulfilment } from "@/lib/pricing/calculateCartTotal";
 import type { OrderStatus } from "@/features/orders/stateMachine";
 
-export const PAYMENT_METHODS = ["cod", "upi", "card"] as const;
+export const PAYMENT_METHODS = ["upi", "cod"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export type OrderItemSnapshot = {

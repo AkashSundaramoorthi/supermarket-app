@@ -16,14 +16,20 @@ import { useAuthStore } from "@/features/profile/authStore";
 import { useOrdersStore } from "@/features/orders/ordersStore";
 import { describeLocation, useLocationStore } from "@/features/location/locationStore";
 import { ProductPlaceholder } from "@/components/ui/ProductPlaceholder";
-import { openRazorpayCheckout } from "@/lib/razorpay/checkout";
 
 const TIP_OPTIONS_PAISE = [0, 1000, 2000, 3000];
 
 const PAYMENT_DETAILS: Record<PaymentMethod, { label: string; icon: string; desc: string }> = {
-  upi: { label: "UPI Instant Pay", icon: "📱", desc: "GPay, PhonePe, Paytm or UPI ID" },
-  card: { label: "Credit / Debit Card", icon: "💳", desc: "Visa, Mastercard, RuPay" },
-  cod: { label: "Cash on Delivery", icon: "💵", desc: "Pay with cash/UPI upon arrival" },
+  upi: {
+    label: "Direct UPI (QR / GPay / PhonePe / Paytm)",
+    icon: "⚡",
+    desc: "Scan QR code or 1-tap pay with any UPI app",
+  },
+  cod: {
+    label: "Cash on Delivery",
+    icon: "💵",
+    desc: "Pay in cash upon doorstep delivery",
+  },
 };
 
 const addressSchema = z.object({
@@ -56,8 +62,31 @@ export function CheckoutScreen() {
   const [pincode, setPincode] = useState("560001");
   const [tipPaise, setTipPaise] = useState(0);
   const [payment, setPayment] = useState<PaymentMethod>("upi");
+  const [utr, setUtr] = useState("");
+  const [copiedUpi, setCopiedUpi] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
+
+  // Pricing calculations
+  const subtotalPaise = items.reduce((sum, i) => sum + i.unitPricePaise * i.qty, 0);
+  const deliveryFee =
+    fulfilment === "pickup"
+      ? 0
+      : subtotalPaise >= store.minFreeDeliveryPaise
+      ? 0
+      : store.deliveryFeePaise;
+
+  const total = calculateCartTotal({
+    lines: items,
+    fulfilment,
+    deliveryFeePaise: deliveryFee,
+    tipPaise,
+  });
+
+  const amountRupees = (total.totalPaise / 100).toFixed(2);
+  const storeUpi = process.env.NEXT_PUBLIC_STORE_UPI_ID || store.upiId || "freshmart@okaxis";
+  const upiIntentUri = `upi://pay?pa=${storeUpi}&pn=${encodeURIComponent(store.name)}&am=${amountRupees}&cu=INR&tn=${encodeURIComponent("Grocery Order")}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiIntentUri)}`;
 
   if (!hydrated) return null;
 
@@ -110,25 +139,25 @@ export function CheckoutScreen() {
     );
   }
 
-  const freeDelivery = fulfilment === "delivery" && items.reduce((s, i) => s + i.qty * i.unitPricePaise, 0) >= store.minFreeDeliveryPaise;
-  const deliveryFee = fulfilment === "pickup" ? 0 : freeDelivery ? 0 : store.deliveryFeePaise;
-
-  const total = calculateCartTotal({
-    lines: items,
-    fulfilment,
-    deliveryFeePaise: deliveryFee,
-    tipPaise,
-  });
-
   const validate = () => {
-    if (fulfilment === "pickup") return true;
-    const result = addressSchema.safeParse({ line, pincode });
-    if (result.success) {
-      setErrors({});
-      return true;
+    if (fulfilment === "delivery") {
+      const result = addressSchema.safeParse({ line, pincode });
+      if (!result.success) {
+        setErrors(Object.fromEntries(result.error.issues.map((i) => [i.path[0] as string, i.message])));
+        return false;
+      }
     }
-    setErrors(Object.fromEntries(result.error.issues.map((i) => [i.path[0] as string, i.message])));
-    return false;
+
+    if (payment === "upi") {
+      const cleanUtr = utr.trim();
+      if (!cleanUtr || !/^\d{12}$/.test(cleanUtr)) {
+        setErrors({ utr: "Please enter the 12-digit UPI reference number (UTR) from your receipt." });
+        return false;
+      }
+    }
+
+    setErrors({});
+    return true;
   };
 
   const placeOrder = async () => {
@@ -143,6 +172,7 @@ export function CheckoutScreen() {
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
           fulfilment,
           paymentMethod: payment,
+          utr: payment === "upi" ? utr.trim() : undefined,
           deliveryAddress: fulfilment === "delivery" ? { line, pincode } : undefined,
           tipPaise,
           phone,
@@ -161,7 +191,7 @@ export function CheckoutScreen() {
         id: data.orderId || `ord-${Date.now().toString().slice(-6)}`,
         createdAt: new Date().toISOString(),
         fulfilment: data.fulfilment,
-        status: data.status,
+        status: data.status || (payment === "upi" ? "paid" : "received"),
         paymentMethod: data.paymentMethod,
         totalPaise: data.totalPaise,
         itemCount: items.reduce((sum, i) => sum + i.qty, 0),
@@ -178,42 +208,6 @@ export function CheckoutScreen() {
         addLocation(customLocationName.trim(), `${line}, Pincode: ${pincode}`);
       }
 
-      // If Razorpay live online payment
-      if (
-        (payment === "upi" || payment === "card") &&
-        data.razorpayOrderId &&
-        !data.razorpayOrderId.startsWith("order_sim_")
-      ) {
-        try {
-          await openRazorpayCheckout({
-            key: data.razorpayKeyId,
-            amount: data.totalPaise,
-            currency: "INR",
-            name: store.name,
-            description: `Order ${data.orderNumber}`,
-            order_id: data.razorpayOrderId,
-            prefill: {
-              contact: phone,
-            },
-            handler: () => {
-              orderData.status = "paid";
-              addOrder(orderData);
-              clearCart();
-              router.push(`/orders/${orderData.id}`);
-            },
-            modal: {
-              ondismiss: () => {
-                setPlacing(false);
-              },
-            },
-          });
-          return;
-        } catch (rzpErr) {
-          console.warn("Razorpay script not available, falling back to simulated order placement:", rzpErr);
-        }
-      }
-
-      // Default / COD / Dev order completion
       addOrder(orderData);
       clearCart();
       router.push(`/orders/${orderData.id}`);
@@ -345,7 +339,7 @@ export function CheckoutScreen() {
         </ul>
       </section>
 
-      {/* Tip Partner (Delivery only) */}
+      {/* Delivery Tip */}
       {fulfilment === "delivery" && (
         <section className="flex flex-col gap-2 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
           <div className="flex items-center justify-between">
@@ -374,8 +368,8 @@ export function CheckoutScreen() {
         </section>
       )}
 
-      {/* Payment Options */}
-      <section className="flex flex-col gap-2.5 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
+      {/* Payment Options - ONLY Direct UPI & Cash on Delivery */}
+      <section className="flex flex-col gap-3 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted">
           Payment Method
         </h2>
@@ -389,7 +383,10 @@ export function CheckoutScreen() {
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
-                onClick={() => setPayment(method)}
+                onClick={() => {
+                  setPayment(method);
+                  setErrors((prev) => ({ ...prev, utr: "" }));
+                }}
                 className={`flex items-center justify-between rounded-[10px] border p-3 text-left transition-all ${
                   isSelected
                     ? "border-accent bg-accent/5 dark:bg-accent/10"
@@ -416,6 +413,87 @@ export function CheckoutScreen() {
             );
           })}
         </div>
+
+        {/* Dynamic Direct UPI Payment Box */}
+        {payment === "upi" && (
+          <div className="flex flex-col items-center gap-3 rounded-[12px] border border-accent/30 bg-accent/5 p-4 text-center mt-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-accent">
+              Scan & Pay ₹{amountRupees} with any UPI App
+            </span>
+
+            {/* Dynamic Scannable QR Code */}
+            <div className="flex flex-col items-center justify-center p-2.5 rounded-[12px] bg-white border border-border shadow-xs">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrCodeUrl}
+                alt="UPI Payment QR Code"
+                className="size-44 object-contain rounded"
+              />
+            </div>
+
+            {/* Store UPI ID badge */}
+            <div className="flex items-center gap-2 rounded-[8px] bg-surface px-3 py-1.5 border border-border text-xs">
+              <span className="text-muted">UPI ID:</span>
+              <span className="font-mono font-bold text-fg">{storeUpi}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(storeUpi);
+                  setCopiedUpi(true);
+                  setTimeout(() => setCopiedUpi(false), 2000);
+                }}
+                className="text-[10px] font-bold text-accent hover:underline ml-1"
+              >
+                {copiedUpi ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+
+            {/* Mobile UPI Intent Button */}
+            <a
+              href={upiIntentUri}
+              className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-accent font-semibold text-xs text-accent-fg shadow-2xs transition-transform hover:opacity-95 active:scale-[0.98]"
+            >
+              <span>⚡</span>
+              <span>Open in GPay / PhonePe / Paytm</span>
+            </a>
+
+            {/* 12-digit UTR Verification Field */}
+            <div className="flex flex-col gap-1 w-full text-left pt-1">
+              <div className="flex items-center justify-between">
+                <label htmlFor="utr-input" className="text-xs font-semibold text-fg">
+                  Enter 12-digit UPI Ref / UTR
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const demoUtr = `4${Date.now().toString().slice(-11)}`;
+                    setUtr(demoUtr);
+                    setErrors((prev) => ({ ...prev, utr: "" }));
+                  }}
+                  className="text-[10px] font-bold text-accent hover:underline"
+                >
+                  Auto-fill Test UTR
+                </button>
+              </div>
+              <input
+                id="utr-input"
+                inputMode="numeric"
+                maxLength={12}
+                value={utr}
+                onChange={(e) => {
+                  setUtr(e.target.value.replace(/\D/g, ""));
+                  setErrors((prev) => ({ ...prev, utr: "" }));
+                }}
+                placeholder="e.g. 412389123456"
+                className="min-h-10 w-full rounded-[8px] border border-border bg-surface px-3 text-sm font-mono tracking-widest text-center focus:border-accent focus:outline-none"
+              />
+              {errors.utr && <span className="text-[11px] text-danger">{errors.utr}</span>}
+              <p className="text-[10px] text-muted text-center pt-0.5">
+                After paying in your UPI app, enter the 12-digit UPI reference number shown on the receipt.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Order Pricing Breakdown */}
@@ -428,65 +506,50 @@ export function CheckoutScreen() {
           <span className="text-muted">Delivery Fee</span>
           <span className="font-semibold text-fg">
             {total.deliveryFeePaise === 0 ? (
-              <span className="text-emerald-700 dark:text-emerald-400 font-bold">FREE</span>
+              <span className="text-emerald-700 dark:text-emerald-400">FREE</span>
             ) : (
               formatPaise(total.deliveryFeePaise)
             )}
           </span>
         </div>
-        {fulfilment === "delivery" && total.tipPaise > 0 && (
+        {total.tipPaise > 0 && (
           <div className="flex justify-between">
-            <span className="text-muted">Delivery Partner Tip</span>
+            <span className="text-muted">Delivery Tip</span>
             <span className="font-semibold text-fg">{formatPaise(total.tipPaise)}</span>
           </div>
         )}
-        <div className="flex items-baseline justify-between border-t border-border pt-2 text-sm font-bold text-fg">
-          <span>Amount to Pay</span>
-          <span className="text-base font-extrabold text-accent">
-            {formatPaise(total.totalPaise)}
-          </span>
+        <div className="my-1 border-t border-border" />
+        <div className="flex justify-between text-sm font-bold">
+          <span>To Pay</span>
+          <span className="text-fg">{formatPaise(total.totalPaise)}</span>
         </div>
       </section>
 
-      {errors.form && (
-        <p className="rounded-[8px] bg-red-500/10 p-3 text-xs font-semibold text-danger">
-          {errors.form}
-        </p>
-      )}
-
-      {/* Place Order Button */}
-      <Button onClick={placeOrder} disabled={placing}>
-        {placing ? (
-          <span className="flex items-center gap-2">
-            <svg
-              className="size-4 animate-spin text-current"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            <span>Processing Order...</span>
-          </span>
-        ) : (
-          `Place Order · ${formatPaise(total.totalPaise)}`
+      {/* Errors & CTA */}
+      <div className="flex flex-col gap-2 pt-2">
+        {errors.form && (
+          <p className="rounded-[8px] bg-red-500/10 p-2.5 text-center text-xs text-danger">
+            {errors.form}
+          </p>
         )}
-      </Button>
 
-      <p className="text-center text-[11px] text-muted">
-        FreshMart Supermarket Secure Ordering · 100% Guaranteed Freshness
-      </p>
+        <Button
+          onClick={placeOrder}
+          disabled={placing}
+          className="min-h-12 w-full text-sm font-bold shadow-xs active:scale-[0.99]"
+        >
+          {placing ? (
+            <div className="flex items-center gap-2">
+              <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <span>Verifying & placing order...</span>
+            </div>
+          ) : payment === "upi" ? (
+            `Verify UTR & Place Order (${formatPaise(total.totalPaise)})`
+          ) : (
+            `Place Order with Cash on Delivery (${formatPaise(total.totalPaise)})`
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

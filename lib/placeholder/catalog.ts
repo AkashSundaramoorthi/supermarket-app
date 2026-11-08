@@ -27,6 +27,7 @@ export const store = {
   deliveryFeePaise: 2500,
   minFreeDeliveryPaise: 19900, // Free delivery above ₹199
   phone: "+91 98765 43210",
+  upiId: process.env.NEXT_PUBLIC_STORE_UPI_ID || "freshmart@okaxis",
   timings: "7:00 AM – 11:30 PM",
 };
 

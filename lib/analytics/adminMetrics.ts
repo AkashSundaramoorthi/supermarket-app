@@ -62,7 +62,7 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
 
   const upiCount = allOrders.filter((o) => o.paymentMethod === "upi").length;
   const codCount = allOrders.filter((o) => o.paymentMethod === "cod").length;
-  const cardCount = allOrders.filter((o) => o.paymentMethod === "card").length;
+  const cardCount = allOrders.filter((o) => (o.paymentMethod as string) === "card").length;
 
   // 2. Product Velocity & Demand Stats
   const productSalesMap = new Map<string, { name: string; qty: number; revenuePaise: number }>();

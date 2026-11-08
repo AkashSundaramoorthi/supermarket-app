@@ -3,7 +3,6 @@ import { z } from "zod";
 import { calculateCartTotal, type Fulfilment } from "@/lib/pricing/calculateCartTotal";
 import { products, store } from "@/lib/placeholder/catalog";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
-import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay/client";
 
 const orderInputSchema = z.object({
   items: z.array(
@@ -14,7 +13,8 @@ const orderInputSchema = z.object({
   ).min(1, "Order must contain at least one item"),
   fulfilment: z.enum(["pickup", "delivery"]),
   storeId: z.string().optional(),
-  paymentMethod: z.enum(["cod", "upi", "card"]),
+  paymentMethod: z.enum(["cod", "upi"]),
+  utr: z.string().optional(),
   deliveryAddress: z
     .object({
       line: z.string().min(3),
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { items: requestedItems, fulfilment, paymentMethod, deliveryAddress, tipPaise, phone } =
+    const { items: requestedItems, fulfilment, paymentMethod, utr, deliveryAddress, tipPaise, phone } =
       result.data;
 
     if (fulfilment === "delivery" && !deliveryAddress) {
@@ -146,45 +146,35 @@ export async function POST(req: NextRequest) {
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
     const collectionCode = fulfilment === "pickup" ? generateCollectionCode() : null;
 
-    let razorpayOrderId: string | null = null;
-    const isOnlinePayment = paymentMethod === "upi" || paymentMethod === "card";
+    // Direct UPI parameters
+    const storeUpi = process.env.NEXT_PUBLIC_STORE_UPI_ID || store.upiId || "freshmart@okaxis";
+    const amountRupees = (cartTotals.totalPaise / 100).toFixed(2);
+    const upiUri = `upi://pay?pa=${storeUpi}&pn=${encodeURIComponent(store.name)}&am=${amountRupees}&cu=INR&tn=${encodeURIComponent(orderNumber)}`;
 
-    // Create Razorpay Order if online payment
-    if (isOnlinePayment) {
-      if (isRazorpayConfigured()) {
-        try {
-          const razorpay = getRazorpayClient();
-          const rzpOrder = await razorpay.orders.create({
-            amount: cartTotals.totalPaise,
-            currency: "INR",
-            receipt: orderNumber,
-            notes: {
-              fulfilment,
-              phone: phone ?? "",
-            },
-          });
-          razorpayOrderId = rzpOrder.id;
-        } catch (rzpErr: unknown) {
-          console.error("Razorpay order creation failed:", rzpErr);
-          return NextResponse.json(
-            { error: "Payment gateway unavailable. Please choose Pay on Delivery." },
-            { status: 502 },
-          );
-        }
-      } else {
-        // Local / demo simulation Razorpay Order ID
-        razorpayOrderId = `order_sim_${Date.now()}`;
-      }
-    }
-
-    // Initial Status
-    const initialStatus = paymentMethod === "cod" ? "received" : "pending_payment";
+    // Initial Status:
+    // If UPI with UTR: "paid"
+    // If COD: "received"
+    // If UPI pending UTR: "pending_payment"
+    const initialStatus =
+      paymentMethod === "upi" && utr
+        ? "paid"
+        : paymentMethod === "cod"
+        ? "received"
+        : "pending_payment";
 
     let dbOrderId = `ord-${Date.now().toString().slice(-6)}`;
 
     // Save to Supabase if configured
     if (isSupabaseConfigured()) {
       try {
+        const addressPayload = deliveryAddress
+          ? { ...deliveryAddress, phone: phone || null, utr: utr || null }
+          : utr
+          ? { phone: phone || null, utr }
+          : phone
+          ? { phone }
+          : null;
+
         const { data: newOrder, error: orderInsertErr } = await supabase
           .from("orders")
           .insert({
@@ -192,14 +182,14 @@ export async function POST(req: NextRequest) {
             store_id: process.env.NEXT_PUBLIC_STORE_ID || "00000000-0000-0000-0000-000000000001",
             status: initialStatus,
             fulfilment,
-            delivery_address: deliveryAddress ? JSON.stringify(deliveryAddress) : null,
+            delivery_address: addressPayload ? JSON.stringify(addressPayload) : null,
             subtotal_paise: cartTotals.subtotalPaise,
             delivery_fee_paise: cartTotals.deliveryFeePaise,
             tip_paise: cartTotals.tipPaise,
             total_paise: cartTotals.totalPaise,
             payment_method: paymentMethod,
             collection_code: collectionCode,
-            razorpay_order_id: razorpayOrderId,
+            razorpay_payment_id: utr ? `utr_${utr}` : null,
           })
           .select("id")
           .single();
@@ -237,8 +227,9 @@ export async function POST(req: NextRequest) {
       deliveryFeePaise: cartTotals.deliveryFeePaise,
       tipPaise: cartTotals.tipPaise,
       collectionCode,
-      razorpayOrderId,
-      razorpayKeyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_campusmarket",
+      upiUri,
+      storeUpi,
+      utr: utr || null,
       items: pricedItems,
     });
   } catch (error: unknown) {
