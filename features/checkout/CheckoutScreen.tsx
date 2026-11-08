@@ -101,8 +101,8 @@ export function CheckoutScreen() {
       itemCount: items.reduce((sum, i) => sum + i.qty, 0),
     });
     addOrder(order);
-    clearCart();
     router.push(`/orders/${order.id}`);
+    clearCart();
   };
 
   return (
