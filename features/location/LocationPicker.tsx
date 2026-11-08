@@ -19,7 +19,7 @@ export function LocationPicker() {
 
   const current = hydrated
     ? describeLocation(selectedId, currentAddress)
-    : { label: "Campus Hostels", address: "Select delivery spot" };
+    : { label: "Select Location", address: "Select delivery spot" };
 
   const detect = () => {
     if (!navigator.geolocation) {
@@ -36,7 +36,7 @@ export function LocationPicker() {
       },
       () => {
         setDetecting(false);
-        setError("Could not get your location. Please select one of the campus spots below.");
+        setError("Could not get your location. Please select one of the delivery addresses below.");
       },
       { enableHighAccuracy: false, timeout: 8000 },
     );
@@ -153,7 +153,7 @@ export function LocationPicker() {
             )}
 
             <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">
-              Campus Delivery Spots
+              Saved Delivery Addresses
             </div>
 
             <ul className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto pr-1">

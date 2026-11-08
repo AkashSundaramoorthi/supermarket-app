@@ -75,7 +75,7 @@ export function ProfileScreen() {
           </div>
           <p className="text-xs text-muted">+91 {phone}</p>
           <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-            Campus Fresh Market Member
+            FreshMart Supermarket Member
           </p>
         </div>
       </div>
@@ -134,14 +134,14 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      {/* Campus Perks Card */}
+      {/* Store Perks Card */}
       <div className="flex flex-col gap-2 rounded-[16px] bg-gradient-to-r from-emerald-800 to-teal-800 p-4 text-white shadow-xs">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🎓</span>
-          <p className="text-sm font-bold">Campus Student Benefits</p>
+          <span className="text-xl">🛍️</span>
+          <p className="text-sm font-bold">FreshMart Member Perks</p>
         </div>
         <p className="text-xs text-emerald-100">
-          Enjoy express 12-minute room deliveries, zero surge charges, and 15-minute quick counter pickups.
+          Enjoy express 15-minute store deliveries, direct owner pickup with no waiting, and zero surge pricing.
         </p>
       </div>
 
@@ -154,17 +154,6 @@ export function ProfileScreen() {
           <div className="flex items-center gap-2.5">
             <span>🧾</span>
             <span>Order History & Receipts</span>
-          </div>
-          <span>→</span>
-        </Link>
-
-        <Link
-          href="/kiosk"
-          className="flex items-center justify-between py-3 text-xs font-semibold hover:text-accent"
-        >
-          <div className="flex items-center gap-2.5">
-            <span>🖥️</span>
-            <span>In-Store Kiosk Mode</span>
           </div>
           <span>→</span>
         </Link>
@@ -188,7 +177,7 @@ export function ProfileScreen() {
         >
           <div className="flex items-center gap-2.5">
             <span>ℹ️</span>
-            <span>Store Timings & Campus Help</span>
+            <span>Store Timings & Customer Help</span>
           </div>
           <span>{showFaq ? "▲" : "▼"}</span>
         </button>

@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Campus Fresh Market",
-  description: "Order groceries for pickup or delivery.",
+  title: "FreshMart Supermarket",
+  description: "Fresh groceries for store owner pickup or express doorstep store delivery.",
   manifest: "/manifest.json",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-192.png" },
 };

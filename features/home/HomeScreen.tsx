@@ -33,7 +33,7 @@ function Onboarding() {
           Welcome to {store.name}
         </h1>
         <p className="text-sm text-muted">
-          Your campus quick supermarket. How would you like to receive your groceries today?
+          Your neighborhood supermarket. How would you like to receive your fresh groceries today?
         </p>
       </div>
 
@@ -44,14 +44,14 @@ function Onboarding() {
         >
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-base font-bold text-fg">
-              <span>🏪</span> In-Store Pickup
+              <span>🏪</span> Store Owner Pickup
             </span>
             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
               Ready in ~{store.pickupEtaMinutes}m
             </span>
           </div>
           <p className="text-xs text-muted">
-            Order ahead, skip the billing queue, and collect at {store.name} counter.
+            Order ahead and pick up directly from the store owner at {store.name}.
           </p>
         </button>
 
@@ -61,14 +61,14 @@ function Onboarding() {
         >
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-base font-bold text-fg">
-              <span>🛵</span> Campus Delivery
+              <span>🛵</span> Store Delivery
             </span>
             <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-fg">
               ⚡ ~{store.deliveryEtaMinutes} mins
             </span>
           </div>
           <p className="text-xs text-muted">
-            Delivered straight to your hostel gate, department, or campus room.
+            Fresh groceries delivered straight from our store to your doorstep.
           </p>
         </button>
       </div>
@@ -143,7 +143,7 @@ function Home({ fulfilment }: { fulfilment: Fulfilment }) {
       <div className="relative overflow-hidden rounded-[14px] bg-gradient-to-r from-emerald-800 to-teal-700 p-4 text-white shadow-xs">
         <div className="relative z-10 flex flex-col gap-1 max-w-[70%]">
           <span className="inline-block w-fit rounded-full bg-white/20 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-            Campus Deal 🚀
+            Store Deal 🚀
           </span>
           <p className="text-base font-bold leading-tight">
             Midnight Cravings or Morning Chai?

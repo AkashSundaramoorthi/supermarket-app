@@ -20,10 +20,10 @@ export type Product = {
 
 export const store = {
   id: "store-1",
-  name: "Campus Fresh Market",
-  address: "Gate 2, College Road, Campus South",
+  name: "FreshMart Supermarket",
+  address: "Main Market Avenue, City Center",
   pickupEtaMinutes: 15,
-  deliveryEtaMinutes: 12,
+  deliveryEtaMinutes: 15,
   deliveryFeePaise: 2500,
   minFreeDeliveryPaise: 19900, // Free delivery above ₹199
   phone: "+91 98765 43210",

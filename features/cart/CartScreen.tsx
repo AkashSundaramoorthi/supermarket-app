@@ -40,7 +40,7 @@ export function CartScreen() {
         </div>
         <h1 className="text-xl font-bold">Your cart is empty</h1>
         <p className="max-w-xs text-xs text-muted">
-          Your cart feels lonely. Add fresh fruits, veggies, snacks, and daily essentials from Campus Market!
+          Your cart feels lonely. Add fresh fruits, veggies, snacks, and daily essentials from FreshMart!
         </p>
         <Link
           href="/"
@@ -164,7 +164,7 @@ export function CartScreen() {
           <span>{freeDeliveryEligible ? "🎉" : "🚚"}</span>
           <span className="font-medium">
             {freeDeliveryEligible
-              ? "Awesome! You have unlocked FREE campus delivery!"
+              ? "Awesome! You have unlocked FREE store delivery!"
               : `Add ${formatPaise(amountNeededForFreeDelivery)} more to get FREE delivery!`}
           </span>
         </div>
@@ -317,7 +317,7 @@ export function CartScreen() {
 
         <div className="flex justify-between">
           <span className="text-muted">
-            Delivery Fee ({fulfilment === "pickup" ? "Pickup" : "Campus Express"})
+            Delivery Fee ({fulfilment === "pickup" ? "Store Pickup" : "Store Delivery"})
           </span>
           <span className="font-medium text-fg">
             {deliveryFee === 0 ? (

@@ -218,7 +218,7 @@ export function CheckoutScreen() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Checkout</h1>
         <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent">
-          {fulfilment === "pickup" ? "🏪 Store Pickup" : "🛵 Campus Delivery"}
+          {fulfilment === "pickup" ? "🏪 Store Owner Pickup" : "🛵 Store Delivery"}
         </span>
       </div>
 
@@ -236,7 +236,7 @@ export function CheckoutScreen() {
             <p className="text-xs text-muted">{store.address}</p>
             <div className="mt-2 flex items-center gap-2 rounded-[8px] bg-neutral-100 p-2 text-xs text-muted dark:bg-neutral-800">
               <span>ℹ️</span>
-              <span>You will receive an in-store counter collection code upon placing this order.</span>
+              <span>Your groceries will be handed over directly by the store owner upon arrival.</span>
             </div>
           </div>
         ) : (
@@ -250,18 +250,18 @@ export function CheckoutScreen() {
 
             <div className="flex flex-col gap-2">
               <label className="flex flex-col gap-1 text-xs font-semibold">
-                Room / Flat / Hostel Block
+                Flat / House / Building Address
                 <input
                   value={line}
                   onChange={(e) => setLine(e.target.value)}
-                  placeholder="e.g. Room 304, Block B"
+                  placeholder="e.g. Flat 402, Green Meadows, 5th Main"
                   className="min-h-10 rounded-[8px] border border-border bg-bg px-3 text-xs focus:border-accent focus:outline-none"
                 />
                 {errors.line && <span className="text-[11px] text-danger">{errors.line}</span>}
               </label>
 
               <label className="flex flex-col gap-1 text-xs font-semibold">
-                Campus Pincode
+                Area Pincode
                 <input
                   inputMode="numeric"
                   maxLength={6}
@@ -450,7 +450,7 @@ export function CheckoutScreen() {
       </Button>
 
       <p className="text-center text-[11px] text-muted">
-        Campus Fresh Market Secure Demo Ordering · 100% Guaranteed Quality
+        FreshMart Supermarket Secure Ordering · 100% Guaranteed Freshness
       </p>
     </div>
   );

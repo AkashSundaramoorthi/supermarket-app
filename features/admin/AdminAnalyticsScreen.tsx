@@ -283,7 +283,7 @@ export function AdminAnalyticsScreen() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-fg">Order #{order.id}</span>
                       <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-muted dark:bg-neutral-800">
-                        {order.fulfilment === "pickup" ? "🏪 Counter Pickup" : "🛵 Room Delivery"}
+                        {order.fulfilment === "pickup" ? "🏪 Store Owner Pickup" : "🛵 Store Delivery"}
                       </span>
                     </div>
                     <p className="text-[11px] text-muted">
@@ -329,10 +329,10 @@ export function AdminAnalyticsScreen() {
                 )}
 
                 {order.collectionCode && (
-                  <div className="flex items-center justify-between rounded-[8px] bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-800 dark:text-emerald-300">
-                    <span className="font-semibold">Counter Pickup Code:</span>
-                    <span className="font-black tracking-widest">{order.collectionCode}</span>
-                  </div>
+                    <div className="flex items-center justify-between rounded-[8px] bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-800 dark:text-emerald-300">
+                      <span className="font-semibold">Store Pickup Code:</span>
+                      <span className="font-black tracking-widest">{order.collectionCode}</span>
+                    </div>
                 )}
 
                 <div className="flex items-center justify-between border-t border-border pt-2 text-xs">
@@ -407,7 +407,7 @@ export function AdminAnalyticsScreen() {
           {/* Demand Surge Clock */}
           <div className="flex flex-col gap-3 rounded-[16px] border border-border bg-surface p-4 shadow-xs">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted">
-              Campus Hourly Demand Surge Timeline
+              Hourly Demand Surge Timeline
             </h2>
 
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

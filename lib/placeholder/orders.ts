@@ -47,7 +47,7 @@ export const placeholderOrders: PlaceholderOrder[] = [
     totalPaise: 21900,
     itemCount: 4,
     collectionCode: null,
-    address: "Hostel B, Room 204",
+    address: "Flat 402, Green Meadows, 5th Main",
     items: [
       { name: "Classic Masala 2-Min Noodles", qty: 2, unitPricePaise: 5600 },
       { name: "Classic Salted Crispy Chips", qty: 2, unitPricePaise: 2000 },

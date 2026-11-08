@@ -89,22 +89,22 @@ export function LoginForm() {
         </div>
         <h1 className="text-xl font-bold tracking-tight text-fg">Log in or Sign up</h1>
         <p className="text-xs text-muted">
-          Access your orders, saved hostel address, and express checkout.
+          Access your orders, saved delivery address, and express checkout.
         </p>
       </div>
 
       {/* 1-Tap Demo Login Button */}
       <div className="flex flex-col gap-2 rounded-[14px] bg-accent/10 p-4 border border-accent/20">
-        <p className="text-xs font-bold text-accent">⚡ Instant Demo Access</p>
+        <p className="text-xs font-bold text-accent">⚡ Instant Access</p>
         <p className="text-[11px] text-muted">
-          Skip SMS verification and sign in instantly as a campus student.
+          Skip SMS verification and sign in instantly with test customer credentials.
         </p>
         <button
           type="button"
           onClick={() => quickLogin("9876543210")}
           className="mt-1 flex min-h-11 w-full items-center justify-center rounded-[8px] bg-accent text-xs font-bold text-accent-fg shadow-xs transition-transform active:scale-[0.98]"
         >
-          Sign in as Student (+91 98765 43210)
+          Sign in as Customer (+91 98765 43210)
         </button>
       </div>
 
@@ -189,7 +189,7 @@ export function LoginForm() {
       </form>
 
       <p className="text-center text-[11px] text-muted">
-        By continuing, you agree to Campus Fresh Market terms and fair usage guidelines.
+        By continuing, you agree to FreshMart terms and fair usage guidelines.
       </p>
     </div>
   );

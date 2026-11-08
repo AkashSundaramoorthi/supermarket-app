@@ -91,13 +91,13 @@ export function KioskScreen() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Order Placed Successfully!</h1>
           <p className="mt-1 text-base text-emerald-200">
-            Please show this code at the checkout counter to collect your groceries.
+            The store owner will hand over your packed groceries directly.
           </p>
         </div>
 
         <div className="flex flex-col items-center rounded-3xl bg-white/10 backdrop-blur-md px-12 py-8 shadow-2xl border border-white/20">
           <p className="text-xs uppercase tracking-widest text-emerald-300 font-bold">
-            Counter Pickup Code
+            Order Verification Code
           </p>
           <p className="text-7xl font-black tracking-widest text-white my-2">{code}</p>
           <div className="my-2 flex h-8 items-center gap-1.5 opacity-80">
@@ -109,7 +109,7 @@ export function KioskScreen() {
               />
             ))}
           </div>
-          <p className="text-xs text-emerald-200">Campus Fresh Market · Counter #1</p>
+          <p className="text-xs text-emerald-200">{store.name} · Direct Store Owner Handover</p>
         </div>
 
         <button
@@ -138,8 +138,8 @@ export function KioskScreen() {
             🛒
           </div>
           <div>
-            <h1 className="text-lg font-bold">{store.name} Express Kiosk</h1>
-            <p className="text-xs text-muted">Tap items to add · Instant counter collection</p>
+            <h1 className="text-lg font-bold">{store.name} Quick Order</h1>
+            <p className="text-xs text-muted">Tap items to add · Handed over directly by store owner</p>
           </div>
         </div>
 

@@ -150,13 +150,13 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
   const promotionPlans: PromotionRecommendation[] = [
     {
       id: "promo-1",
-      title: "Midnight Hostel Study Crunch Bundle",
+      title: "Late-Night Cravings Snack Bundle",
       tag: "High Demand Surge",
       icon: "🍜",
       expectedUpside: "+₹14,500/night",
       rationale:
-        "Instant Noodles and Cold Brew Coffee traffic spikes by 340% between 10:30 PM and 1:30 AM across campus hostels.",
-      suggestedDiscount: "10% Combo Discount with code STUDY10",
+        "Instant Noodles and Cold Brew Coffee traffic spikes by 340% between 10:30 PM and 1:30 AM.",
+      suggestedDiscount: "10% Combo Discount with code NIGHT10",
       targetItems: ["Classic Masala 2-Min Noodles", "Cold Brew Iced Coffee (Vanilla)"],
       status: "ready",
     },
@@ -187,11 +187,11 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
     {
       id: "promo-4",
       title: "Sports & Gym Hydration Drive",
-      tag: "Campus Event",
+      tag: "Fitness & Wellness",
       icon: "⚡",
       expectedUpside: "+₹8,900/day",
       rationale:
-        "Hostel gym & campus sports complex active hours (4:30 PM - 7:30 PM). Promote 100% Valencia Orange Juice and Mineral Spring Water.",
+        "Peak evening workout hours (4:30 PM - 7:30 PM). Promote 100% Valencia Orange Juice and Mineral Spring Water.",
       suggestedDiscount: "Buy 2 Get 10% OFF Beverages",
       targetItems: ["Valencia Orange Juice", "Himalayan Mineral Spring Water"],
       status: "ready",
@@ -204,7 +204,7 @@ export function computeAdminAnalytics(orders: PlaceholderOrder[]) {
       timeSlot: "07:30 AM – 10:30 AM",
       predictedDemand: "High 🔥",
       dominantCategory: "Dairy, Eggs & Fresh Produce",
-      suggestedAction: "Ensure pickup counter is staffed with 2 associates for rush hour.",
+      suggestedAction: "Ensure store staff is ready for morning grocery rush.",
     },
     {
       timeSlot: "12:00 PM – 02:30 PM",

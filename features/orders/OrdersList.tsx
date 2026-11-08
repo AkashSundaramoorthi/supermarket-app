@@ -130,10 +130,10 @@ export function OrdersList() {
                     <span>{order.itemCount} items</span>
                   </div>
 
-                  {order.collectionCode && order.status === "ready_for_pickup" && (
+                  {order.fulfilment === "pickup" && order.status === "ready_for_pickup" && (
                     <div className="flex items-center justify-between rounded-[8px] bg-accent/10 px-3 py-1.5 text-xs text-accent">
-                      <span className="font-semibold">Counter Code</span>
-                      <span className="font-extrabold tracking-wider">{order.collectionCode}</span>
+                      <span className="font-semibold">🏪 Ready at Store</span>
+                      <span className="font-medium text-[11px]">Given directly by store owner</span>
                     </div>
                   )}
 
