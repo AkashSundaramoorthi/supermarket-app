@@ -45,6 +45,9 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
+      if (data.isTestNumber || data.testOtp) {
+        setCode(data.testOtp || DEMO_OTP);
+      }
       setCodeSent(true);
     } catch {
       setError("Network error sending code");

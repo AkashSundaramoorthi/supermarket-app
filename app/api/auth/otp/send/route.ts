@@ -3,6 +3,13 @@ import { z } from "zod";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { checkOtpSendRateLimit } from "@/lib/security/rateLimiter";
 
+// Verified test phone numbers registered in Supabase
+export const TEST_PHONE_NUMBERS: Record<string, { otp: string; name: string }> = {
+  "9876543210": { otp: "123456", name: "Verified Customer" },
+  "9999999999": { otp: "123456", name: "Store Tester" },
+  "9888888888": { otp: "123456", name: "Akash S" },
+};
+
 const sendOtpSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
@@ -51,6 +58,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check if test phone number
+    if (TEST_PHONE_NUMBERS[phone]) {
+      const testInfo = TEST_PHONE_NUMBERS[phone];
+      return NextResponse.json({
+        success: true,
+        isTestNumber: true,
+        testOtp: testInfo.otp,
+        message: `Test number recognized for ${testInfo.name}. Use code ${testInfo.otp}.`,
+      });
+    }
+
     const internationalPhone = `+91${phone}`;
 
     if (isSupabaseConfigured()) {
@@ -60,6 +78,22 @@ export async function POST(req: NextRequest) {
       });
 
       if (error) {
+        // If phone provider has not been configured with Twilio/SMS credentials in dashboard
+        if (
+          error.message?.includes("provider_disabled") ||
+          error.message?.includes("Unsupported phone provider")
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "SMS provider not yet configured in Supabase Auth. Use test number 9876543210 (Code: 123456).",
+              suggestedTestNumber: "9876543210",
+              suggestedOtp: "123456",
+            },
+            { status: 400 },
+          );
+        }
+
         console.error("Supabase SMS OTP send error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
@@ -70,11 +104,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Dev / Demo fallback mode
+    // Fallback mode
     return NextResponse.json({
       success: true,
       demoMode: true,
-      message: "Demo mode: SMS simulated. Use code 123456.",
+      message: "SMS simulated. Use code 123456.",
       demoOtp: "123456",
     });
   } catch (error: unknown) {

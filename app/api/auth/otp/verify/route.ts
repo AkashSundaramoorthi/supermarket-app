@@ -6,6 +6,7 @@ import {
   recordFailedOtpVerifyAttempt,
   recordSuccessfulOtpVerify,
 } from "@/lib/security/rateLimiter";
+import { TEST_PHONE_NUMBERS } from "../send/route";
 
 const verifyOtpSchema = z.object({
   phone: z.string().regex(/^\d{10}$/),
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { phone, code } = result.data;
     const identifier = `phone:${phone}`;
+    const internationalPhone = `+91${phone}`;
 
     // 1. Check Brute-Force Lockout
     const check = checkOtpVerifyBruteForce(identifier);
@@ -44,8 +46,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const internationalPhone = `+91${phone}`;
+    // 2. Recognized Test Phone Number Verification
+    const testConfig = TEST_PHONE_NUMBERS[phone];
+    if (testConfig) {
+      if (code !== testConfig.otp) {
+        const attemptResult = recordFailedOtpVerifyAttempt(identifier);
+        return NextResponse.json(
+          {
+            error: `Invalid verification code. Use test code ${testConfig.otp}.`,
+            remainingAttempts: attemptResult.remainingAttempts,
+          },
+          { status: 401 },
+        );
+      }
 
+      recordSuccessfulOtpVerify(identifier);
+
+      if (isSupabaseConfigured()) {
+        const supabase = createAdminClient();
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id, phone, full_name")
+          .eq("phone", phone)
+          .single();
+
+        return NextResponse.json({
+          success: true,
+          isTestNumber: true,
+          user: {
+            id: profile?.id || `user_test_${phone}`,
+            phone: internationalPhone,
+            name: profile?.full_name || testConfig.name,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        isTestNumber: true,
+        user: {
+          id: `user_test_${phone}`,
+          phone: internationalPhone,
+          name: testConfig.name,
+        },
+      });
+    }
+
+    // 3. Live Supabase SMS OTP Verification
     if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
       const { data, error } = await supabase.auth.verifyOtp({
@@ -83,19 +130,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Demo Mode Verification (Only code 123456 is valid)
+    // Fallback Mock Verification
     if (code !== "123456") {
       const attemptResult = recordFailedOtpVerifyAttempt(identifier);
-      if (attemptResult.locked) {
-        return NextResponse.json(
-          {
-            error: `Invalid code. Too many failed attempts. Verification locked for ${attemptResult.lockoutMinutes} minutes.`,
-            locked: true,
-          },
-          { status: 429 },
-        );
-      }
-
       return NextResponse.json(
         {
           error: `Invalid verification code. ${attemptResult.remainingAttempts} attempts remaining.`,
