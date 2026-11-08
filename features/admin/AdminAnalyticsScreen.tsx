@@ -9,6 +9,7 @@ import { placeholderOrders, type PlaceholderOrder } from "@/lib/placeholder/orde
 import { computeAdminAnalytics } from "@/lib/analytics/adminMetrics";
 import { STATUS_LABELS } from "@/features/orders/statusLabels";
 import { useStoreSettings } from "@/lib/stores/useStoreSettings";
+import { exportOrdersToCsv, exportOrdersToJson, generateOrdersCsv } from "@/lib/analytics/exportOrders";
 import type { OrderStatus } from "@/features/orders/stateMachine";
 
 export function AdminAnalyticsScreen() {
@@ -23,9 +24,18 @@ export function AdminAnalyticsScreen() {
   const [activatedPromos, setActivatedPromos] = useState<Record<string, boolean>>({
     "promo-3": true, // pre-activated demo promo
   });
-  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "completed">("all");
   const [togglingDelivery, setTogglingDelivery] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState("");
+
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [fulfilmentFilter, setFulfilmentFilter] = useState<"all" | "pickup" | "delivery">("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "upi" | "cod">("all");
+  const [dateRangeFilter, setDateRangeFilter] = useState<"all" | "today" | "7days" | "30days">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "highest" | "lowest">("newest");
+  const [copiedToast, setCopiedToast] = useState(false);
+  const [referenceTime] = useState<number>(() => Date.now());
 
   useEffect(() => {
     fetchSettings();
@@ -97,14 +107,112 @@ export function AdminAnalyticsScreen() {
     }
   };
 
+  // Filtered & Sorted Orders Engine
   const filteredOrders = useMemo(() => {
-    return metrics.allOrders.filter((o) => {
+    const q = searchQuery.trim().toLowerCase();
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    const list = metrics.allOrders.filter((o) => {
+      // 1. Search Query Match
+      if (q) {
+        const matchesId = o.id.toLowerCase().includes(q);
+        const matchesAddress = o.address ? o.address.toLowerCase().includes(q) : false;
+        const matchesCode = o.collectionCode ? o.collectionCode.toLowerCase().includes(q) : false;
+        const matchesPayment = o.paymentMethod.toLowerCase().includes(q);
+        const matchesItem = o.items ? o.items.some((item) => item.name.toLowerCase().includes(q)) : false;
+
+        if (!matchesId && !matchesAddress && !matchesCode && !matchesPayment && !matchesItem) {
+          return false;
+        }
+      }
+
+      // 2. Status Filter Match
       const isCompleted = o.status === "delivered" || o.status === "collected";
-      if (orderFilter === "active") return !isCompleted;
-      if (orderFilter === "completed") return isCompleted;
+      if (statusFilter === "active" && isCompleted) return false;
+      if (statusFilter === "completed" && !isCompleted) return false;
+      if (statusFilter !== "all" && statusFilter !== "active" && statusFilter !== "completed") {
+        if (o.status !== statusFilter) return false;
+      }
+
+      // 3. Fulfilment Filter Match
+      if (fulfilmentFilter !== "all" && o.fulfilment !== fulfilmentFilter) {
+        return false;
+      }
+
+      // 4. Payment Method Filter Match
+      if (paymentFilter !== "all" && o.paymentMethod !== paymentFilter) {
+        return false;
+      }
+
+      // 5. Date Range Filter Match
+      if (dateRangeFilter !== "all" && referenceTime > 0) {
+        const orderTime = new Date(o.createdAt).getTime();
+        if (dateRangeFilter === "today" && referenceTime - orderTime > oneDay) return false;
+        if (dateRangeFilter === "7days" && referenceTime - orderTime > 7 * oneDay) return false;
+        if (dateRangeFilter === "30days" && referenceTime - orderTime > 30 * oneDay) return false;
+      }
+
       return true;
     });
-  }, [metrics.allOrders, orderFilter]);
+
+    // 6. Sorting
+    return [...list].sort((a, b) => {
+      if (sortBy === "newest") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === "oldest") {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === "highest") {
+        return b.totalPaise - a.totalPaise;
+      }
+      if (sortBy === "lowest") {
+        return a.totalPaise - b.totalPaise;
+      }
+      return 0;
+    });
+  }, [metrics.allOrders, searchQuery, statusFilter, fulfilmentFilter, paymentFilter, dateRangeFilter, sortBy, referenceTime]);
+
+  const filteredTotalValue = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => sum + o.totalPaise, 0);
+  }, [filteredOrders]);
+
+  const isFiltered = Boolean(
+    searchQuery ||
+    statusFilter !== "all" ||
+    fulfilmentFilter !== "all" ||
+    paymentFilter !== "all" ||
+    dateRangeFilter !== "all" ||
+    sortBy !== "newest"
+  );
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setFulfilmentFilter("all");
+    setPaymentFilter("all");
+    setDateRangeFilter("all");
+    setSortBy("newest");
+  };
+
+  const handleExportCsv = () => {
+    exportOrdersToCsv(filteredOrders, "quickmart-orders-export");
+  };
+
+  const handleExportJson = () => {
+    exportOrdersToJson(filteredOrders, "quickmart-orders-analysis");
+  };
+
+  const handleCopyCsv = async () => {
+    const csv = generateOrdersCsv(filteredOrders);
+    try {
+      await navigator.clipboard.writeText(csv);
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 3000);
+    } catch {
+      // Fallback
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 p-4 pb-24 md:p-8 max-w-7xl mx-auto">
@@ -141,9 +249,7 @@ export function AdminAnalyticsScreen() {
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* OWNER DELIVERY SWITCH: Stop deliveries when no delivery partner is ready */}
-        {/* ========================================================================= */}
+        {/* OWNER DELIVERY SWITCH */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border p-4 transition-all ${
           deliveryEnabled
             ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/30"
@@ -218,7 +324,7 @@ export function AdminAnalyticsScreen() {
                 : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
             }`}
           >
-            📋 Live Orders ({metrics.activeOrdersCount} Live)
+            📋 Orders & Export ({metrics.allOrders.length})
           </button>
           <button
             onClick={() => setTab("inventory")}
@@ -243,11 +349,8 @@ export function AdminAnalyticsScreen() {
         </div>
       </header>
 
-      {/* ========================================================================= */}
       {/* 4 HIGH-CONTRAST KPI METRIC TILES */}
-      {/* ========================================================================= */}
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-        {/* Card 1: Revenue */}
         <div className="flex flex-col justify-between gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -263,7 +366,6 @@ export function AdminAnalyticsScreen() {
           </span>
         </div>
 
-        {/* Card 2: Total Orders */}
         <div className="flex flex-col justify-between gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -279,7 +381,6 @@ export function AdminAnalyticsScreen() {
           </span>
         </div>
 
-        {/* Card 3: Active Orders */}
         <div className="flex flex-col justify-between gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -295,7 +396,6 @@ export function AdminAnalyticsScreen() {
           </span>
         </div>
 
-        {/* Card 4: Average Basket */}
         <div className="flex flex-col justify-between gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -312,14 +412,10 @@ export function AdminAnalyticsScreen() {
         </div>
       </div>
 
-      {/* ========================================================================= */}
       {/* TAB 1: OVERVIEW & OPERATIONAL AUDIT */}
-      {/* ========================================================================= */}
       {tab === "overview" && (
         <div className="flex flex-col gap-5">
-          {/* Fulfilment & Payment Split */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Fulfilment Breakdown */}
             <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -330,7 +426,6 @@ export function AdminAnalyticsScreen() {
                 </span>
               </div>
 
-              {/* Progress bar */}
               <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
                 <div
                   className="bg-emerald-600 transition-all"
@@ -356,7 +451,6 @@ export function AdminAnalyticsScreen() {
               </div>
             </div>
 
-            {/* Payment Distribution */}
             <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
               <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                 Payment Distribution (100% Direct)
@@ -376,7 +470,6 @@ export function AdminAnalyticsScreen() {
             </div>
           </div>
 
-          {/* Top Selling Fast-Moving Groceries */}
           <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
@@ -406,58 +499,206 @@ export function AdminAnalyticsScreen() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: LIVE ORDERS FEED & DISPATCH ACTIONS */}
+      {/* TAB 2: LIVE ORDERS FEED, SEARCH, ADVANCED FILTERS & DATA EXPORT */}
       {/* ========================================================================= */}
       {tab === "orders" && (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-black uppercase tracking-wider text-neutral-900 dark:text-neutral-100">
-                Live Store Order Dispatch Feed ({filteredOrders.length})
-              </h2>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Stage progression: Paid → Packed → Out for delivery → Delivered
-              </p>
+        <div className="flex flex-col gap-5">
+          {/* Top Operational Bar: Title, Search & Data Export Controls */}
+          <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-black tracking-tight text-neutral-900 dark:text-neutral-100">
+                  Order Management & Data Analysis Console
+                </h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Search, filter, inspect, and export full order transactions for financial and operational analysis.
+                </p>
+              </div>
+
+              {/* Data Export Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportCsv}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-transform hover:bg-emerald-700 active:scale-95"
+                  title="Download filtered orders as CSV for Excel / Google Sheets"
+                >
+                  <span>📥</span>
+                  <span>Export CSV</span>
+                </button>
+
+                <button
+                  onClick={handleExportJson}
+                  className="flex items-center gap-1.5 rounded-xl border border-neutral-300 bg-neutral-50 px-3.5 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition-colors hover:border-emerald-600 hover:text-emerald-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                  title="Download raw structured data as JSON for Python / BI analysis"
+                >
+                  <span>📊</span>
+                  <span>Export JSON</span>
+                </button>
+
+                <button
+                  onClick={handleCopyCsv}
+                  className="flex items-center gap-1.5 rounded-xl border border-neutral-300 bg-neutral-50 px-3.5 py-2 text-xs font-bold text-neutral-700 shadow-2xs transition-colors hover:border-emerald-600 hover:text-emerald-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                  title="Copy CSV to clipboard to paste directly into Excel or AI notebooks"
+                >
+                  <span>📋</span>
+                  <span>{copiedToast ? "✓ Copied!" : "Copy CSV"}</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex gap-1.5 text-xs font-bold">
-              <button
-                onClick={() => setOrderFilter("all")}
-                className={`rounded-lg px-3 py-1.5 transition-colors ${
-                  orderFilter === "all"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "border border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                }`}
-              >
-                All Orders ({metrics.allOrders.length})
-              </button>
-              <button
-                onClick={() => setOrderFilter("active")}
-                className={`rounded-lg px-3 py-1.5 transition-colors ${
-                  orderFilter === "active"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "border border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                }`}
-              >
-                Active ({metrics.activeOrdersCount})
-              </button>
-              <button
-                onClick={() => setOrderFilter("completed")}
-                className={`rounded-lg px-3 py-1.5 transition-colors ${
-                  orderFilter === "completed"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "border border-neutral-300 bg-white text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                }`}
-              >
-                Fulfilled ({metrics.completedOrdersCount})
-              </button>
+            {/* SEARCH INPUT BAR */}
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+                🔍
+              </span>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by Order ID, item name (e.g. Milk, Noodles), address, or pickup code..."
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-10 py-2.5 text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* ADVANCED FILTER TOOLBAR */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1 text-xs">
+              {/* Filter 1: Order Status */}
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-bold text-neutral-800 focus:border-emerald-600 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">⚡ Active (In Progress)</option>
+                  <option value="completed">✓ Fulfilled (Completed)</option>
+                  <option value="paid">Paid</option>
+                  <option value="packed">Packed</option>
+                  <option value="out_for_delivery">Out for Delivery</option>
+                  <option value="ready_for_pickup">Ready for Pickup</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="collected">Collected</option>
+                </select>
+              </div>
+
+              {/* Filter 2: Fulfilment Type */}
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Fulfilment
+                </label>
+                <select
+                  value={fulfilmentFilter}
+                  onChange={(e) => setFulfilmentFilter(e.target.value as "all" | "pickup" | "delivery")}
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-bold text-neutral-800 focus:border-emerald-600 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="pickup">🏪 Store Owner Pickup</option>
+                  <option value="delivery">🛵 Store Delivery</option>
+                </select>
+              </div>
+
+              {/* Filter 3: Payment Method */}
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Payment
+                </label>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value as "all" | "upi" | "cod")}
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-bold text-neutral-800 focus:border-emerald-600 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                >
+                  <option value="all">All Payments</option>
+                  <option value="upi">⚡ Direct UPI</option>
+                  <option value="cod">💵 Cash on Delivery</option>
+                </select>
+              </div>
+
+              {/* Filter 4: Date Range */}
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Time Period
+                </label>
+                <select
+                  value={dateRangeFilter}
+                  onChange={(e) => setDateRangeFilter(e.target.value as "all" | "today" | "7days" | "30days")}
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-bold text-neutral-800 focus:border-emerald-600 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+              </div>
+
+              {/* Filter 5: Sort By */}
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Sort Order
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "highest" | "lowest")}
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-bold text-neutral-800 focus:border-emerald-600 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                >
+                  <option value="newest">🕒 Newest First</option>
+                  <option value="oldest">⏳ Oldest First</option>
+                  <option value="highest">💰 Highest Amount</option>
+                  <option value="lowest">🪙 Lowest Amount</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Results Counter & Active Filter Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3 text-xs dark:border-neutral-800">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-neutral-900 dark:text-neutral-100">
+                  Showing {filteredOrders.length} of {metrics.allOrders.length} orders
+                </span>
+                <span className="text-neutral-400">·</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                  Total Value: {formatPaise(filteredTotalValue)}
+                </span>
+              </div>
+
+              {isFiltered && (
+                <button
+                  onClick={resetFilters}
+                  className="rounded-lg bg-neutral-100 px-2.5 py-1 text-xs font-bold text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                >
+                  ✕ Clear All Filters
+                </button>
+              )}
             </div>
           </div>
 
+          {/* ORDERS LIST */}
           <div className="flex flex-col gap-4">
             {filteredOrders.length === 0 ? (
-              <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center text-sm font-bold text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900">
-                No orders match this filter.
+              <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white p-12 text-center shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                <span className="text-4xl">🔍</span>
+                <h3 className="text-base font-extrabold text-neutral-900 dark:text-neutral-100">
+                  No orders matched your search or filters
+                </h3>
+                <p className="text-xs text-neutral-500 max-w-sm">
+                  Try adjusting your search query, clearing status filters, or resetting the date range.
+                </p>
+                <button
+                  onClick={resetFilters}
+                  className="mt-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+                >
+                  Reset All Filters
+                </button>
               </div>
             ) : (
               filteredOrders.map((order) => {
@@ -486,6 +727,7 @@ export function AdminAnalyticsScreen() {
                           {new Date(order.createdAt).toLocaleString("en-IN", {
                             day: "numeric",
                             month: "short",
+                            year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
@@ -613,12 +855,9 @@ export function AdminAnalyticsScreen() {
         </div>
       )}
 
-      {/* ========================================================================= */}
       {/* TAB 3: STOCK HEALTH & RESTOCK ALERTS */}
-      {/* ========================================================================= */}
       {tab === "inventory" && (
         <div className="flex flex-col gap-5">
-          {/* Inventory Health Alerts */}
           <div className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center justify-between">
               <div>
@@ -674,7 +913,6 @@ export function AdminAnalyticsScreen() {
             </div>
           </div>
 
-          {/* Demand Surge Timeline */}
           <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
             <h2 className="text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
               Hourly Customer Demand Surge Timeline
@@ -703,9 +941,7 @@ export function AdminAnalyticsScreen() {
         </div>
       )}
 
-      {/* ========================================================================= */}
       {/* TAB 4: DEMAND-DRIVEN PROMOTIONS & MARKETING PLAN */}
-      {/* ========================================================================= */}
       {tab === "promotions" && (
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">

@@ -12,6 +12,7 @@ export function OrdersList() {
   const hydrated = useHydrated();
   const placed = useOrdersStore((s) => s.placed);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (!hydrated) return null;
 
@@ -22,7 +23,17 @@ export function OrdersList() {
   });
   const orders = Array.from(allOrdersMap.values());
 
+  const q = searchQuery.trim().toLowerCase();
   const visible = orders.filter((o) => {
+    // Search query
+    if (q) {
+      const matchesId = o.id.toLowerCase().includes(q);
+      const matchesAddress = o.address ? o.address.toLowerCase().includes(q) : false;
+      const matchesCode = o.collectionCode ? o.collectionCode.toLowerCase().includes(q) : false;
+      const matchesItem = o.items ? o.items.some((item) => item.name.toLowerCase().includes(q)) : false;
+      if (!matchesId && !matchesAddress && !matchesCode && !matchesItem) return false;
+    }
+
     const isCompleted = o.status === "collected" || o.status === "delivered" || o.status === "refunded";
     if (filter === "active") return !isCompleted;
     if (filter === "completed") return isCompleted;
@@ -42,6 +53,28 @@ export function OrdersList() {
         >
           + New Order
         </Link>
+      </div>
+
+      {/* Search Input Bar */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted">
+          🔍
+        </span>
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by order ID or item name (e.g. Milk, Chips)..."
+          className="w-full rounded-xl border border-border bg-surface pl-9 pr-8 py-2 text-xs text-fg placeholder:text-muted focus:border-accent focus:outline-none"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted hover:text-fg"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Filter Tabs */}
