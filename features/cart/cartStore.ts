@@ -9,6 +9,8 @@ export type CartLine = {
   unit: string;
   unitPricePaise: number;
   qty: number;
+  image?: string;
+  mrpPaise?: number;
 };
 
 type CartState = {
@@ -28,7 +30,9 @@ export const useCartStore = create<CartState>()(
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.productId === product.productId ? { ...i, qty: Math.min(i.qty + 1, MAX_QTY_PER_ITEM) } : i,
+                i.productId === product.productId
+                  ? { ...i, qty: Math.min(i.qty + 1, MAX_QTY_PER_ITEM) }
+                  : i,
               ),
             };
           }

@@ -4,6 +4,12 @@ import type { OrderStatus } from "@/features/orders/stateMachine";
 export const PAYMENT_METHODS = ["cod", "upi", "card"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+export type OrderItemSnapshot = {
+  name: string;
+  qty: number;
+  unitPricePaise: number;
+};
+
 export type PlaceholderOrder = {
   id: string;
   createdAt: string;
@@ -13,6 +19,8 @@ export type PlaceholderOrder = {
   totalPaise: number;
   itemCount: number;
   collectionCode: string | null;
+  items?: OrderItemSnapshot[];
+  address?: string;
 };
 
 export const placeholderOrders: PlaceholderOrder[] = [
@@ -25,6 +33,10 @@ export const placeholderOrders: PlaceholderOrder[] = [
     totalPaise: 16400,
     itemCount: 3,
     collectionCode: "A142",
+    items: [
+      { name: "Pasteurized Full Cream Milk", qty: 2, unitPricePaise: 6500 },
+      { name: "Farm Fresh Hybrid Tomatoes", qty: 1, unitPricePaise: 3400 },
+    ],
   },
   {
     id: "ord-1000",
@@ -33,8 +45,13 @@ export const placeholderOrders: PlaceholderOrder[] = [
     status: "delivered",
     paymentMethod: "cod",
     totalPaise: 21900,
-    itemCount: 5,
+    itemCount: 4,
     collectionCode: null,
+    address: "Hostel B, Room 204",
+    items: [
+      { name: "Classic Masala 2-Min Noodles", qty: 2, unitPricePaise: 5600 },
+      { name: "Classic Salted Crispy Chips", qty: 2, unitPricePaise: 2000 },
+    ],
   },
 ];
 

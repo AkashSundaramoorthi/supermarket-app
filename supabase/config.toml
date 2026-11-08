@@ -1,0 +1,46 @@
+# Supabase CLI Project Configuration
+project_id = "campusmarket"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+
+[auth.sms.test_otp]
+# Fixed OTP for development testing phone numbers
+"9876543210" = "123456"
+"9999999999" = "123456"
+
+[edge_runtime]
+enabled = true
+port = 54324
+
+# Supabase Edge Functions configuration
+[functions.create-order]
+verify_jwt = true
+
+[functions.razorpay-webhook]
+# Webhook calls from Razorpay servers do not contain Supabase JWTs
+verify_jwt = false
