@@ -1,5 +1,5 @@
 // QuickMart Supermarket Service Worker
-const CACHE_NAME = "quickmart-v1";
+const CACHE_NAME = "quickmart-v2";
 const STATIC_ASSETS = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -19,22 +19,40 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Let browser handle API and dynamic requests
+  // Let browser handle API and non-GET requests directly
   if (event.request.url.includes("/api/") || event.request.method !== "GET") {
     return;
   }
 
+  // Network-first for page navigations so users always get the newest layout/app updates
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).catch(() => {
-          // Fallback to cached root if offline
-          if (event.request.mode === "navigate") {
-            return caches.match("/");
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
+          return networkResponse;
         })
-      );
+        .catch(() => cached);
+      return cached || fetchPromise;
     })
   );
 });
