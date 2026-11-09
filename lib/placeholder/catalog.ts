@@ -37,7 +37,8 @@ export const categories: Category[] = [
   { id: "c-instant", name: "Instant & Noodles", icon: "🍜" },
   { id: "c-snacks", name: "Snacks & Munchies", icon: "🥨" },
   { id: "c-drinks", name: "Drinks & Juices", icon: "🧃" },
-  { id: "c-essentials", name: "Daily Essentials", icon: "🧼" },
+  { id: "c-sweets", name: "Sweets & Gifting", icon: "🎁" },
+  { id: "c-essentials", name: "Home & Cleaning", icon: "🧼" },
 ];
 
 export const products: Product[] = [
@@ -297,7 +298,91 @@ export const products: Product[] = [
     badge: "Germ Shield",
     isVeg: true,
   },
+  {
+    id: "p-24",
+    categoryId: "c-essentials",
+    name: "Surf Excel Matic Liquid Detergent",
+    unit: "1 L Pouch",
+    unitPricePaise: 14900,
+    mrpPaise: 19000,
+    description: "Powerful stain removal liquid detergent designed specifically for automatic washing machines.",
+    image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=400&q=80",
+    badge: "Household Best",
+    isVeg: true,
+  },
+
+  // Fresh Produce & BigBasket Inspirations
+  {
+    id: "p-20",
+    categoryId: "c-produce",
+    name: "fresho! Fresh Ladies' Fingers (Bhindi)",
+    unit: "250 g",
+    unitPricePaise: 1000,
+    mrpPaise: 1500,
+    description: "Fresh, tender, bright green okra handpicked from local farms. Perfect for crispy kurkuri bhindi and homestyle sabzi.",
+    image: "https://images.unsplash.com/photo-1525607551316-4a8e16d1f9ba?auto=format&fit=crop&w=400&q=80",
+    badge: "33% OFF",
+    isVeg: true,
+    calories: "33 kcal/100g",
+  },
+  {
+    id: "p-21",
+    categoryId: "c-produce",
+    name: "fresho! Haricot Fresh Green Beans",
+    unit: "500 g",
+    unitPricePaise: 5000,
+    mrpPaise: 7375,
+    description: "Tender, stringless, crisp French beans rich in vitamins A and C. Excellent for poriyal, pulao, and stir-fry.",
+    image: "https://images.unsplash.com/photo-1597362925123-77861d3fbac7?auto=format&fit=crop&w=400&q=80",
+    badge: "32% OFF",
+    isVeg: true,
+    calories: "31 kcal/100g",
+  },
+
+  // Festive Sweets & Gifting
+  {
+    id: "p-22",
+    categoryId: "c-sweets",
+    name: "Haldiram's Pure Kaju Katli Sweet",
+    unit: "250 g Box",
+    unitPricePaise: 19900,
+    mrpPaise: 25000,
+    description: "Traditional Indian diamond-shaped cashew fudge with fine silver vark. Melt-in-the-mouth festive delight.",
+    image: "https://images.unsplash.com/photo-1599785209707-a456fc1337bb?auto=format&fit=crop&w=400&q=80",
+    badge: "Festive Pick",
+    isVeg: true,
+    calories: "440 kcal/100g",
+  },
+  {
+    id: "p-23",
+    categoryId: "c-sweets",
+    name: "Ferrero Rocher Premium Hazelnut Chocolates",
+    unit: "300 g (24 pcs)",
+    unitPricePaise: 29900,
+    mrpPaise: 37500,
+    description: "Whole crunchy hazelnut coated in smooth chocolate filling, crisp wafer shell, and milk chocolate and chopped hazelnuts.",
+    image: "https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=400&q=80",
+    badge: "Gifting 🎁",
+    isVeg: true,
+    calories: "580 kcal/100g",
+  },
+  {
+    id: "p-25",
+    categoryId: "c-snacks",
+    name: "Britannia Treat Strawberry & Milk Bikis",
+    unit: "50 g Twin Pack",
+    unitPricePaise: 1000,
+    mrpPaise: 1500,
+    description: "Crisp golden biscuits with smooth strawberry crème. Iconic snack paired with evening chai or milk.",
+    image: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&w=400&q=80",
+    badge: "₹10 Corner",
+    isVeg: true,
+    calories: "480 kcal/100g",
+  },
 ];
+
+export const topPickProductIds = ["p-20", "p-3", "p-21", "p-1", "p-25", "p-6"];
+export const previouslyBoughtProductIds = ["p-25", "p-4", "p-20", "p-7", "p-13"];
 
 export function findProduct(id: string): Product | undefined {
   return products.find((p) => p.id === id);
